@@ -1,0 +1,10 @@
+@import './base.css';
+
+#app {
+  text-align: center; /* 使用 text-align */
+  display: flex; /* 使用 flex 布局 */
+  justify-content: center; /* 使用 flex 布局 */
+  margin: 0 auto; /* 使用 margin */
+  padding: 2rem;
+  font-weight: normal;
+}
