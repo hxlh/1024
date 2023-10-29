@@ -1,7 +1,7 @@
 /*
  * @Date: 2023-10-27 07:58:50
  * @LastEditors: hxlh
- * @LastEditTime: 2023-10-29 08:56:35
+ * @LastEditTime: 2023-10-29 13:36:01
  * @FilePath: /1024/server/src/service/account_service_impl.go
  */
 package service
@@ -105,20 +105,20 @@ func (t *AccountServiceImpl) Login(username string, password string) (entities.L
 }
 
 // 验证token是否有效
-func (t *AccountServiceImpl) JwtAuth(token string) error {
+func (t *AccountServiceImpl) JwtAuth(token string) (*MyCustomClaims,error) {
 	signKey, err := t.accountDao.GetJwtSignedKey()
 	if err != nil {
-		return err
+		return nil,err
 	}
-	parseClaim := MyCustomClaims{}
-	_, err = jwt.ParseWithClaims(token, &parseClaim, func(t *jwt.Token) (interface{}, error) {
+	claim := &MyCustomClaims{}
+	_, err = jwt.ParseWithClaims(token, claim, func(t *jwt.Token) (interface{}, error) {
 		return []byte(signKey), nil
 	})
 	if err != nil {
 		err = errors.WithStack(err)
-		return err
+		return nil,err
 	}
-	return nil
+	return claim,nil
 }
 
 func NewAccountServiceImpl(accountDao storage.AccountDao) *AccountServiceImpl {

@@ -126,14 +126,14 @@ func (t *AccountController) LoginAuthMiddleware() gin.HandlerFunc {
 			t.logger.Error(errWithStack(err))
 			return
 		}
-		err = t.service.JwtAuth(token.Value)
+		claim,err:= t.service.JwtAuth(token.Value)
 		if err != nil {
 			c.JSON(code, &resp)
 			c.Abort()
 			t.logger.Error(errWithStack(err))
 			return
 		}
-
+		c.Set("claim",claim)
 		c.Next()
 	}
 }

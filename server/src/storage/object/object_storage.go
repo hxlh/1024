@@ -1,7 +1,7 @@
 /*
  * @Date: 2023-10-26 05:44:54
  * @LastEditors: hxlh
- * @LastEditTime: 2023-10-26 13:03:59
+ * @LastEditTime: 2023-10-29 12:49:14
  * @FilePath: /1024/server/src/storage/object/object_storage.go
  */
 package object
@@ -9,7 +9,7 @@ package object
 type ObjectStorage interface {
 	// 获取对象的下载url
 	Load(key string, deadline int64) string
-	// 获取上传Token
+	// 获取上传Token，expire 单位为秒
 	GetUpToken(expire uint64) string
 }
 

@@ -1,7 +1,7 @@
 /*
  * @Date: 2023-10-25 05:59:02
  * @LastEditors: hxlh
- * @LastEditTime: 2023-10-28 12:33:03
+ * @LastEditTime: 2023-10-29 14:06:17
  * @FilePath: /1024/server/src/storage/video_dao_impl.go
  */
 package storage
@@ -9,6 +9,7 @@ package storage
 import (
 	"database/sql"
 	"dev1024/src/entities"
+	"strconv"
 
 	"github.com/pkg/errors"
 )
@@ -44,7 +45,7 @@ func (t *VideoDaoImpl) getNextNByVid(tx *sql.Tx, vid int64, n int) ([]*entities.
 		return nil, errors.WithStack(err)
 	}
 	defer rows.Close()
-	
+
 	ans := make([]*entities.VideoInfo, 0)
 	for rows.Next() {
 		videoInfo := &entities.VideoInfo{}
@@ -63,13 +64,40 @@ func (t *VideoDaoImpl) Save(videoInfo *entities.VideoInfo) error {
 	return commitOrRollback(err, tx)
 }
 
-func (t*VideoDaoImpl) save(tx *sql.Tx, videoInfo *entities.VideoInfo) error {
+func (t *VideoDaoImpl) save(tx *sql.Tx, videoInfo *entities.VideoInfo) error {
 	stmt, err := tx.Prepare("INSERT INTO video1024.video_info(uploader,cdn,subtitled,likes,tags) VALUES(?,?,?,?,?)")
 	if err != nil {
 		return errors.WithStack(err)
 	}
 	defer stmt.Close()
-	_, err = stmt.Exec(videoInfo.UpLoader, videoInfo.CDN, videoInfo.Subtitled, videoInfo.Likes, videoInfo.Tags)
+	res, err := stmt.Exec(videoInfo.UpLoader, videoInfo.CDN, videoInfo.Subtitled, videoInfo.Likes, videoInfo.Tags)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	vid, err := res.LastInsertId()
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	videoInfo.Vid = uint64(vid)
+
+	err = t.updateCDN(tx, videoInfo)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	return nil
+}
+
+func (t *VideoDaoImpl) updateCDN(tx *sql.Tx, videoInfo *entities.VideoInfo) error {
+	stmt, err := tx.Prepare("UPDATE video1024.video_info SET cdn=? WHERE vid = ?")
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	defer stmt.Close()
+
+	key := strconv.FormatUint(videoInfo.Vid, 10) + ".mp4"
+
+	_, err = stmt.Exec(key, videoInfo.Vid)
 	if err != nil {
 		return errors.WithStack(err)
 	}
@@ -77,4 +105,3 @@ func (t*VideoDaoImpl) save(tx *sql.Tx, videoInfo *entities.VideoInfo) error {
 }
 
 var _ VideoDao = (*VideoDaoImpl)(nil)
-

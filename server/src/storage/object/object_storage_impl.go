@@ -19,7 +19,6 @@ type QiNiuObjectStorage struct {
 	bucket        string
 }
 
-// GetUpToken implements ObjectStorage.
 func (q *QiNiuObjectStorage) GetUpToken(expire uint64) string {
 	putPolicy := storage.PutPolicy{
 		Expires: expire,

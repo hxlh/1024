@@ -1,7 +1,7 @@
 /*
  * @Date: 2023-10-24 03:35:04
  * @LastEditors: hxlh
- * @LastEditTime: 2023-10-29 09:02:23
+ * @LastEditTime: 2023-10-29 14:07:36
  * @FilePath: /1024/server/src/main.go
  */
 
@@ -28,7 +28,6 @@ const CONFIG_PATH = "server.yml"
 
 func main() {
 	config.ConfigInit(CONFIG_PATH)
-
 	databaseCfg := config.GetConfig().DataBases["mysql.video1024"]
 	username := databaseCfg["username"]
 	password := databaseCfg["password"]

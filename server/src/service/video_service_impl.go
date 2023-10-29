@@ -1,7 +1,7 @@
 /*
  * @Date: 2023-10-25 05:33:57
  * @LastEditors: hxlh
- * @LastEditTime: 2023-10-29 07:33:01
+ * @LastEditTime: 2023-10-29 13:54:20
  * @FilePath: /1024/server/src/service/video_service_impl.go
  */
 package service
@@ -15,7 +15,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-const VIDEO_UPTOKEN_EXPIRE_TIME=time.Minute*30
+const VIDEO_UPTOKEN_EXPIRE_TIME = 3600
 
 type VideoServiceImpl struct {
 	videoDao      storage.VideoDao
@@ -23,8 +23,13 @@ type VideoServiceImpl struct {
 }
 
 // ApplyVideoUpToken implements VideoService.
-func (t*VideoServiceImpl) ApplyVideoUpToken() (string, error) {
-	return t.objectStorage.GetUpToken(uint64(VIDEO_UPTOKEN_EXPIRE_TIME)),nil
+func (t *VideoServiceImpl) ApplyVideoUpToken(video *entities.VideoInfo) (string, error) {
+	err := t.videoDao.Save(video)
+	if err != nil {
+		return "", err
+	}
+	token := t.objectStorage.GetUpToken(uint64(VIDEO_UPTOKEN_EXPIRE_TIME))
+	return token, nil
 }
 
 func (t *VideoServiceImpl) FetchNextByVID(vid int64) (*entities.VideoInfo, string, error) {

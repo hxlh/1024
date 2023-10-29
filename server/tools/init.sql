@@ -2,7 +2,7 @@ CREATE DATABASE video1024 CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 
 CREATE TABLE video1024.video_info (
 	vid BIGINT UNSIGNED auto_increment NOT NULL,
-	uploader BIGINT NOT NULL,
+	uploader BIGINT UNSIGNED NOT NULL,
 	cdn TEXT NOT NULL,
 	subtitled varchar(100) NULL,
 	likes BIGINT NOT NULL,
