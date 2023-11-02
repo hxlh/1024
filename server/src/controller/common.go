@@ -8,11 +8,6 @@ package controller
 
 import "fmt"
 
-type RespMsg struct {
-	Status string      `json:"status "`
-	Data   interface{} `json:"data"`
-}
-
 // 读缓冲大小
 const READ_BUFFER_SIZE = 2048
 

@@ -1,2 +1,3 @@
 static
 server.yml
+http_ca.crt

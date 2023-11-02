@@ -1,107 +1,246 @@
 /*
  * @Date: 2023-10-25 05:59:02
  * @LastEditors: hxlh
- * @LastEditTime: 2023-10-29 14:06:17
- * @FilePath: /1024/server/src/storage/video_dao_impl.go
+ * @LastEditTime: 2023-11-02 15:07:40
+ * @FilePath: /1024-dev/1024/server/src/storage/video_dao_impl.go
  */
 package storage
 
 import (
+	"context"
 	"database/sql"
 	"dev1024/src/entities"
-	"strconv"
+	"dev1024/src/storage/object"
+	"encoding/json"
+	"fmt"
+	"io"
+	"strings"
+	"sync"
+	"time"
 
+	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/pkg/errors"
 )
 
 type VideoDaoImpl struct {
-	baseDB *BaseDB
+	objectStorage object.ObjectStorage
 }
 
-func NewVideoDaoImpl(baseDB *BaseDB) *VideoDaoImpl {
-	return &VideoDaoImpl{
-		baseDB: baseDB,
+// UpdateBy implements VideoDao.
+func (*VideoDaoImpl) UpdateBy(ctx context.Context, keys []string, values []any, by string, byValue any) error {
+	ctx, tx, err := getTxFromCtx(ctx)
+	if err != nil {
+		return err
 	}
+	err=UpdateTableBy(tx,"video1024.video_info",keys,values,by,byValue)
+
+	return errors.WithStack(err)
 }
 
-func (t *VideoDaoImpl) GetNextNByVid(vid int64, n int) ([]*entities.VideoInfo, error) {
-	tx, err := t.baseDB.DB.Begin()
+// AddToElasticsearch implements VideoDao.
+func (t *VideoDaoImpl) AddToElasticsearch(ctx context.Context, videoinfo *entities.VideoInfo) error {
+	pool := ctx.Value("elastic.pool").(*sync.Pool)
+	client := pool.Get().(*elasticsearch.Client)
+	defer pool.Put(client)
+
+	body := fmt.Sprintf(`
+	{
+		"vid": %v,
+		"uploader": %v,
+		"subtitled": "%v",
+		"tags": "%v",
+		"likes": %v,
+		"upload_time": %v
+	}
+	`, videoinfo.Vid,
+		videoinfo.UpLoader,
+		videoinfo.Subtitled,
+		videoinfo.Tags,
+		videoinfo.Likes,
+		videoinfo.UpLoadTime)
+	resp, err := client.Index("videoinfo", strings.NewReader(body))
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	return nil
+}
+
+// GetBy implements VideoDao.
+func (*VideoDaoImpl) GetBy(ctx context.Context, keys []string, values []any, by string, byValue any) error {
+	ctx, tx, err := getTxFromCtx(ctx)
+	if err != nil {
+		return err
+	}
+	return errors.WithStack(SelectTableBy(tx, "video1024.video_info", keys, values, by, byValue))
+}
+
+// SearchVideo implements VideoDao.
+func (*VideoDaoImpl) SearchVideo(ctx context.Context, key string, offset int, size int) (map[string]interface{}, error) {
+	pool := ctx.Value("elastic.pool").(*sync.Pool)
+	client := pool.Get().(*elasticsearch.Client)
+	defer pool.Put(client)
+
+	body := fmt.Sprintf(`
+	{
+		"query": {
+		  "bool": {
+			"should": [
+			  { "match": { "subtitled": "%v" } },
+			  { "match": { "tags": "%v" } }
+			]
+		  }
+		},
+		"sort": [
+		  { "likes": "desc" },
+		  { "upload_time": "desc" }
+		],
+		"from": %v,   
+		"size": %v,
+		"highlight": {
+			"fields": {
+			  "subtitled": {}
+			}
+		}
+	}
+	`, key, key, offset, size)
+
+	resp, err := client.Search(
+		client.Search.WithIndex("videoinfo"),
+		client.Search.WithBody(strings.NewReader(body)),
+	)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
-	ans, err := t.getNextNByVid(tx, vid, n)
-	return ans, commitOrRollback(err, tx)
+
+	defer resp.Body.Close()
+	buff, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	res := make(map[string]interface{})
+	err = json.Unmarshal(buff, &res)
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
 }
 
-func (t *VideoDaoImpl) getNextNByVid(tx *sql.Tx, vid int64, n int) ([]*entities.VideoInfo, error) {
-	stmt, err := tx.Prepare("SELECT * FROM video1024.video_info WHERE vid > ? LIMIT 0,?")
+// UpdateComplete implements VideoDao.
+func (t *VideoDaoImpl) UpdateComplete(ctx context.Context, vid uint64, complete int) error {
+	ctx, tx, err := getTxFromCtx(ctx)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return err
 	}
-	defer stmt.Close()
-
-	rows, err := stmt.Query(vid, n)
-	if err != nil {
-		return nil, errors.WithStack(err)
-	}
-	defer rows.Close()
-
-	ans := make([]*entities.VideoInfo, 0)
-	for rows.Next() {
-		videoInfo := &entities.VideoInfo{}
-		rows.Scan(&videoInfo.Vid, &videoInfo.UpLoader, &videoInfo.CDN, &videoInfo.Subtitled, &videoInfo.Likes, &videoInfo.Tags)
-		ans = append(ans, videoInfo)
-	}
-	return ans, nil
+	return t.updateComplete(tx, vid, complete)
 }
 
-func (t *VideoDaoImpl) Save(videoInfo *entities.VideoInfo) error {
-	tx, err := t.baseDB.DB.Begin()
-	if err != nil {
-		return errors.WithStack(err)
-	}
-	err = t.save(tx, videoInfo)
-	return commitOrRollback(err, tx)
+func (t *VideoDaoImpl) updateComplete(tx *sql.Tx, vid uint64, complete int) error {
+	err := UpdateTableBy(tx, "video1024.video_info", []string{"upload_complete"}, []any{complete}, "vid", vid)
+	return errors.WithStack(err)
 }
 
-func (t *VideoDaoImpl) save(tx *sql.Tx, videoInfo *entities.VideoInfo) error {
-	stmt, err := tx.Prepare("INSERT INTO video1024.video_info(uploader,cdn,subtitled,likes,tags) VALUES(?,?,?,?,?)")
+// GetUploadCompleteByID implements VideoDao.
+func (t *VideoDaoImpl) GetUploadCompleteByID(ctx context.Context, vid uint64) (uint64, int, error) {
+	ctx, tx, err := getTxFromCtx(ctx)
 	if err != nil {
-		return errors.WithStack(err)
+		return 0, 0, err
 	}
-	defer stmt.Close()
-	res, err := stmt.Exec(videoInfo.UpLoader, videoInfo.CDN, videoInfo.Subtitled, videoInfo.Likes, videoInfo.Tags)
-	if err != nil {
-		return errors.WithStack(err)
-	}
+	return t.getUploadCompleteByID(tx, vid)
+}
 
-	vid, err := res.LastInsertId()
+func (t *VideoDaoImpl) getUploadCompleteByID(tx *sql.Tx, vid uint64) (uint64, int, error) {
+	var uploader uint64
+	var uploadComplete int
+	err := SelectTableBy(tx, "video1024.video_info", []string{"uploader", "upload_complete"}, []any{&uploader, &uploadComplete}, "vid", vid)
 	if err != nil {
-		return errors.WithStack(err)
+		return 0, 0, errors.WithStack(err)
+	}
+	return uploader, uploadComplete, nil
+}
+
+// GetVKeyByID implements VideoDao.
+func (t *VideoDaoImpl) GetVKeyByID(ctx context.Context, vid uint64) (string, error) {
+	ctx, tx, err := getTxFromCtx(ctx)
+	if err != nil {
+		return "", err
+	}
+	return t.getVKeyByID(tx, vid)
+}
+
+func (t *VideoDaoImpl) getVKeyByID(tx *sql.Tx, vid uint64) (string, error) {
+	var vkey sql.NullString
+	err := SelectTableBy(tx, "video1024.video_info", []string{"vkey"}, []any{&vkey}, "vid", vid)
+	if err != nil {
+		return "", errors.WithStack(err)
+	}
+	if !vkey.Valid {
+		return "", errors.New("vkey not exist")
+	}
+	return vkey.String, nil
+}
+
+func (t *VideoDaoImpl) Create(ctx context.Context, videoInfo *entities.VideoInfo) (uint64, error) {
+	ctx, tx, err := getTxFromCtx(ctx)
+	if err != nil {
+		return 0, err
+	}
+	vid, err := t.create(tx, videoInfo)
+	return vid, err
+}
+
+func (t *VideoDaoImpl) create(tx *sql.Tx, videoInfo *entities.VideoInfo) (uint64, error) {
+	vid, err := InsertTableWith(tx, "video1024.video_info", []string{
+		"uploader", "subtitled", "likes", "tags", "upload_complete", "upload_time",
+	}, []any{
+		videoInfo.UpLoader,
+		videoInfo.Subtitled,
+		videoInfo.Likes,
+		videoInfo.Tags,
+		videoInfo.UpLoadComplete,
+		time.Now().UnixMilli(),
+	})
+	if err != nil {
+		return 0, errors.WithStack(err)
 	}
 	videoInfo.Vid = uint64(vid)
+	if err != nil {
+		return 0, errors.WithStack(err)
+	}
+	return videoInfo.Vid, nil
+}
 
-	err = t.updateCDN(tx, videoInfo)
+// UpdateVKey implements VideoDao.
+func (t *VideoDaoImpl) UpdateVKey(ctx context.Context, videoInfo *entities.VideoInfo) error {
+	ctx, tx, err := getTxFromCtx(ctx)
+	if err != nil {
+		return err
+	}
+	err = t.updateVKey(tx, videoInfo.Vid, videoInfo.VKey)
+	return err
+}
+
+func (t *VideoDaoImpl) updateVKey(tx *sql.Tx, vid uint64, vkey string) error {
+	stmt, err := tx.Prepare("UPDATE video1024.video_info SET vkey=? WHERE vid = ?")
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(vid, vkey)
 	if err != nil {
 		return errors.WithStack(err)
 	}
 	return nil
 }
 
-func (t *VideoDaoImpl) updateCDN(tx *sql.Tx, videoInfo *entities.VideoInfo) error {
-	stmt, err := tx.Prepare("UPDATE video1024.video_info SET cdn=? WHERE vid = ?")
-	if err != nil {
-		return errors.WithStack(err)
-	}
-	defer stmt.Close()
-
-	key := strconv.FormatUint(videoInfo.Vid, 10) + ".mp4"
-
-	_, err = stmt.Exec(key, videoInfo.Vid)
-	if err != nil {
-		return errors.WithStack(err)
-	}
-	return nil
+func NewVideoDaoImpl() *VideoDaoImpl {
+	return &VideoDaoImpl{}
 }
 
 var _ VideoDao = (*VideoDaoImpl)(nil)

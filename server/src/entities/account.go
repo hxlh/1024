@@ -1,9 +1,15 @@
+/*
+ * @Date: 2023-10-28 11:34:17
+ * @LastEditors: hxlh
+ * @LastEditTime: 2023-11-01 16:34:55
+ * @FilePath: /1024/server/src/entities/account.go
+ */
 package entities
 
 import "time"
 
 type Account struct {
-	Uid          uint64     `json:"uid"`
+	Uid          uint64    `json:"uid"`
 	Username     string    `json:"username"`
 	NickName     string    `json:"nickname"`
 	Pwd          string    `json:"pwd"`
@@ -11,24 +17,24 @@ type Account struct {
 	Avatar       string    `json:"avatar"`
 }
 
-type LoginInfo struct{
-	Uid uint64 `json:"uid"`
+type LoginReq struct {
 	UserName string `json:"username"`
-	Token string `json:"token"`
+	Pwd      string `json:"pwd"`
 }
 
-type LoginReq struct{
-	UserName string `json:"username"`
-	Pwd string `json:"pwd"`
+type LoginResp struct {
+	Uid          uint64    `json:"uid"`
+	Username     string    `json:"username"`
+	NickName     string    `json:"nickname"`
+	Avatar       string    `json:"avatar"`
 }
 
-type LoginResp struct{
-	Uid uint64 `json:"uid"`
+type RegisterReq struct {
 	UserName string `json:"username"`
-}
-
-type RegisterReq struct{
-	UserName string `json:"username"`
-	Pwd string `json:"pwd"`
+	Pwd      string `json:"pwd"`
 	NickName string `json:"nickname"`
+}
+
+type RegisterResp struct {
+	RespMsg
 }

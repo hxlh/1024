@@ -1,12 +1,13 @@
 /*
  * @Date: 2023-10-27 07:58:50
  * @LastEditors: hxlh
- * @LastEditTime: 2023-10-29 13:36:01
+ * @LastEditTime: 2023-11-01 16:45:44
  * @FilePath: /1024/server/src/service/account_service_impl.go
  */
 package service
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"dev1024/src/entities"
@@ -35,13 +36,17 @@ type AccountServiceImpl struct {
 }
 
 // Register implements AccountService.
-func (t *AccountServiceImpl) Register(account *entities.Account) error {
-	_, err := t.accountDao.Save(account)
-	return err
+func (t *AccountServiceImpl) Register(ctx context.Context, account *entities.Account) error {
+	ctx, tx, err := getTxFromCtx(ctx)
+	if err != nil {
+		return err
+	}
+	_, err = t.accountDao.Create(ctx, account)
+	return commitOrRollback(err, tx)
 }
 
 // GenJwtSignKey implements AccountService.
-func (t *AccountServiceImpl) GenJwtSignKey() string {
+func (t *AccountServiceImpl) GenJwtSignKey(ctx context.Context) string {
 	var randNum int64
 	if err := binary.Read(rand.Reader, binary.BigEndian, &randNum); err != nil {
 		panic(err)
@@ -59,18 +64,31 @@ func (t *AccountServiceImpl) GenJwtSignKey() string {
 }
 
 // Login implements AccountService.
-func (t *AccountServiceImpl) Login(username string, password string) (entities.LoginInfo, error) {
-	var loginInfo entities.LoginInfo
-	uid, pwd, err := t.accountDao.GetUidAndPwdByUsername(username)
+func (t *AccountServiceImpl) Login(ctx context.Context, username string, password string) (entities.Account, string, error) {
+	var account entities.Account
+	ctx, tx, err := getTxFromCtx(ctx)
 	if err != nil {
-		return loginInfo, err
+		return account, "", err
 	}
-	if pwd != password {
-		return loginInfo, errors.New("Incorrect password")
+	account,err= t.accountDao.GetAccountByUsername(ctx, username)
+	account.Username=username
+	err = commitOrRollback(err, tx)
+	if err != nil {
+		return account, "", errors.WithStack(err)
+	}
+
+	hash := sha256.New()
+	hash.Write([]byte(username))
+	hash.Write([]byte(password))
+	hashByte := hash.Sum(nil)
+	hashStr := hex.EncodeToString(hashByte)
+
+	if account.Pwd != hashStr {
+		return account, "", errors.New("Incorrect password")
 	}
 
 	claim := MyCustomClaims{
-		Uid:       uid,
+		Uid:       account.Uid,
 		Username:  username,
 		LoginTime: time.Now().Unix(),
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -78,17 +96,22 @@ func (t *AccountServiceImpl) Login(username string, password string) (entities.L
 		},
 	}
 
-	signKey, err := t.accountDao.GetJwtSignedKey()
+	ctx, conn, err := getRedisConnFromCtx(ctx)
+	if err != nil {
+		return account, "", err
+	}
+	defer conn.Close()
+	signKey, err := t.accountDao.GetJwtSignedKey(ctx)
 	if err != nil {
 		if err != redis.Nil {
-			return loginInfo, err
+			return account, "", err
 		}
 		// key 不存在
-		signKey = t.GenJwtSignKey()
+		signKey = t.GenJwtSignKey(ctx)
 		// 写回缓存
-		err = t.accountDao.SetJwtSignedKey(signKey)
+		err = t.accountDao.SetJwtSignedKey(ctx, signKey)
 		if err != nil {
-			return loginInfo, err
+			return account, "", err
 		}
 	}
 
@@ -96,19 +119,21 @@ func (t *AccountServiceImpl) Login(username string, password string) (entities.L
 	tokenSigned, err := token.SignedString([]byte(signKey))
 
 	if err != nil {
-		return loginInfo, err
+		return account, "", err
 	}
-	loginInfo.Uid = uid
-	loginInfo.UserName = username
-	loginInfo.Token = tokenSigned
-	return loginInfo, nil
+	return account, tokenSigned, nil
 }
 
 // 验证token是否有效
-func (t *AccountServiceImpl) JwtAuth(token string) (*MyCustomClaims,error) {
-	signKey, err := t.accountDao.GetJwtSignedKey()
+func (t *AccountServiceImpl) JwtAuth(ctx context.Context, token string) (*MyCustomClaims, error) {
+	ctx, conn, err := getRedisConnFromCtx(ctx)
 	if err != nil {
-		return nil,err
+		return nil, err
+	}
+	defer conn.Close()
+	signKey, err := t.accountDao.GetJwtSignedKey(ctx)
+	if err != nil {
+		return nil, err
 	}
 	claim := &MyCustomClaims{}
 	_, err = jwt.ParseWithClaims(token, claim, func(t *jwt.Token) (interface{}, error) {
@@ -116,9 +141,9 @@ func (t *AccountServiceImpl) JwtAuth(token string) (*MyCustomClaims,error) {
 	})
 	if err != nil {
 		err = errors.WithStack(err)
-		return nil,err
+		return nil, err
 	}
-	return claim,nil
+	return claim, nil
 }
 
 func NewAccountServiceImpl(accountDao storage.AccountDao) *AccountServiceImpl {
