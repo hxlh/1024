@@ -1,8 +1,8 @@
 /*
  * @Date: 2023-10-25 05:33:57
  * @LastEditors: hxlh
- * @LastEditTime: 2023-11-02 15:10:36
- * @FilePath: /1024-dev/1024/server/src/service/video_service_impl.go
+ * @LastEditTime: 2023-11-03 13:09:53
+ * @FilePath: /1024/server/src/service/video_service_impl.go
  */
 package service
 
@@ -11,7 +11,9 @@ import (
 	"dev1024/src/entities"
 	"dev1024/src/storage"
 	"dev1024/src/storage/object"
+	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -26,17 +28,106 @@ type VideoServiceImpl struct {
 	objectStorage object.ObjectStorage
 }
 
+// CancelLikeVideo implements VideoService.
+func (t *VideoServiceImpl) CancelLikeVideo(ctx context.Context, req entities.CancelLikeVideoReq) (entities.CancelLikeVideoResp, error) {
+	// 1.查询该视频对应的tags
+	// 2.更新Elasticsearch的user_tags表的tags
+	var resp entities.CancelLikeVideoResp
+	var tags string
+
+	ctx, tx, err := getTxFromCtx(ctx)
+	if err != nil {
+		return resp, err
+	}
+	err = t.videoDao.GetBy(ctx, []string{"tags"}, []any{&tags}, "vid", req.Vid)
+	defer tx.Commit()
+	if err != nil {
+		return resp, err
+	}
+	if tags == "" {
+		return resp, nil
+	}
+	tagArr := strings.Split(tags, ",")
+	tagLikes := make([]entities.TagLikes, 0)
+	for i := 0; i < len(tagArr); i++ {
+		tagLikes = append(tagLikes, entities.TagLikes{
+			Tag:   tagArr[i],
+			Likes: -1,
+		})
+	}
+
+	err = t.videoDao.UserTagsIndexDel(ctx, req.Uid, tagLikes)
+	if err != nil {
+		return resp, err
+	}
+	err = t.videoDao.UserLikesIndexDel(ctx, req.Vid, req.Uid)
+	if err != nil {
+		return resp, err
+	}
+	return resp, nil
+}
+
+// LikeVideo implements VideoService.
+func (t *VideoServiceImpl) LikeVideo(ctx context.Context, req entities.LikeVideoReq) (entities.LikeVideoResp, error) {
+	// 1.添加到Elasticsearch的user_like表
+	// 2.查询该视频对应的tags
+	// 3.更新Elasticsearch的user_tags表的tags
+	var resp entities.LikeVideoResp
+	err := t.videoDao.UserLikesIndexAdd(ctx, req.Vid, req.Uid, time.Now().Unix())
+	if err != nil {
+		return resp, err
+	}
+	ctx, tx, err := getTxFromCtx(ctx)
+	if err != nil {
+		return resp, err
+	}
+	defer tx.Commit()
+	var tags string
+	err = t.videoDao.GetBy(ctx, []string{"tags"}, []any{&tags}, "vid", req.Vid)
+	if err != nil {
+		return resp, err
+	}
+	if tags == "" {
+		return resp, nil
+	}
+	tagArr := strings.Split(tags, ",")
+	tagLikes := make([]entities.TagLikes, 0)
+	for i := 0; i < len(tagArr); i++ {
+		tagLikes = append(tagLikes, entities.TagLikes{
+			Tag:   tagArr[i],
+			Likes: 1,
+		})
+	}
+
+	err = t.videoDao.UserTagsIndexUpdate(ctx, req.Uid, tagLikes)
+	if err != nil {
+		return resp, err
+	}
+
+	return resp, nil
+}
+
+// RecommendedVideo implements VideoService.
+func (*VideoServiceImpl) RecommendedVideo(ctx context.Context, req entities.RecommendedVideoReq) (entities.RecommendedVideoResp, error) {
+	panic("unimplemented")
+}
+
 // SearchVideo implements VideoService.
 func (t *VideoServiceImpl) SearchVideo(ctx context.Context, key string, offset int, size int) (entities.SearchVideoResp, error) {
 	res := entities.SearchVideoResp{
 		Info: make([]*entities.SearchVideoRespInfo, 0),
 	}
-	resp, err := t.videoDao.SearchVideo(ctx, key, offset, size)
+	resp, err := t.videoDao.VideoIndexSearch(ctx, key, offset, size)
 	if err != nil {
 		return res, err
 	}
 
-	hits := resp["hits"].(map[string]interface{})
+	hits, ok := resp["hits"].(map[string]interface{})
+	fmt.Println(resp)
+	panic("SearchVideo not finished")
+	if !ok {
+		return res, nil
+	}
 	total := hits["total"].(map[string]interface{})
 	hitNum := int(total["value"].(float64))
 	if hitNum == 0 {
@@ -113,7 +204,7 @@ func (t *VideoServiceImpl) UpLoadVideoCallBack(ctx context.Context, uploaderIn u
 		finalErr = errors.New("The requester is not the same as the uploader")
 		return
 	}
-	err=t.videoDao.UpdateBy(ctx,[]string{"upload_complete"},[]any{1},"vid",vid)
+	err = t.videoDao.UpdateBy(ctx, []string{"upload_complete"}, []any{1}, "vid", vid)
 	if err != nil {
 		finalErr = err
 		return
@@ -138,7 +229,7 @@ func (t *VideoServiceImpl) AddToElasticsearch(ctx context.Context, vid uint64) e
 	}
 	tx.Commit()
 
-	err = t.videoDao.AddToElasticsearch(ctx, &videoinfo)
+	err = t.videoDao.VideoIndexAdd(ctx, &videoinfo)
 	if err != nil {
 		return err
 	}
@@ -172,7 +263,7 @@ func (t *VideoServiceImpl) UpLoadVideo(ctx context.Context, upLoadVideoReq *enti
 	token := t.GetUpLoadToken(ctx, imgKey, uint64(VIDEO_UPTOKEN_EXPIRE_TIME))
 
 	videoInfo.VKey = vkey
-	err = t.videoDao.UpdateBy(ctx,[]string{"vkey","thumbnail"},[]any{vkey,imgKey},"vid",vid)
+	err = t.videoDao.UpdateBy(ctx, []string{"vkey", "thumbnail"}, []any{vkey, imgKey}, "vid", vid)
 	err = commitOrRollback(err, tx)
 	if err != nil {
 		return resp, err

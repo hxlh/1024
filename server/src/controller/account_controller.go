@@ -1,7 +1,7 @@
 /*
  * @Date: 2023-10-27 07:56:30
  * @LastEditors: hxlh
- * @LastEditTime: 2023-11-01 16:46:29
+ * @LastEditTime: 2023-11-03 12:46:18
  * @FilePath: /1024/server/src/controller/account_controller.go
  */
 package controller
@@ -81,14 +81,12 @@ func (t *AccountController) Login(c *gin.Context) {
 		return
 	}
 
-	// 设置cookie，过期时间得等
-	c.SetCookie("jwt_token", token, 3600, "", "", false, true)
-
 	loginResp := entities.LoginResp{
 		Uid:      account.Uid,
 		Username: account.Username,
 		NickName: account.NickName,
 		Avatar:   account.Avatar,
+		Token:    token,
 	}
 	resp.Data = loginResp
 }
@@ -133,14 +131,13 @@ func (t *AccountController) LoginAuthMiddleware() gin.HandlerFunc {
 			Status: "error",
 			Data:   "Authentication failure",
 		}
-		token, err := c.Request.Cookie("jwt_token")
-		if err != nil {
+		token, ok := c.Request.Header["Authorization"]
+		if !ok{
 			c.JSON(code, &resp)
 			c.Abort()
-			t.logger.Error(errWithStack(err))
 			return
 		}
-		claim, err := t.service.JwtAuth(ctx, token.Value)
+		claim, err := t.service.JwtAuth(ctx, token[0])
 		if err != nil {
 			c.JSON(code, &resp)
 			c.Abort()

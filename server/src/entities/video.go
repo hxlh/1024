@@ -1,8 +1,8 @@
 /*
  * @Date: 2023-10-25 05:54:39
  * @LastEditors: hxlh
- * @LastEditTime: 2023-11-02 15:20:48
- * @FilePath: /1024-dev/1024/server/src/entities/video.go
+ * @LastEditTime: 2023-11-03 08:32:17
+ * @FilePath: /1024/server/src/entities/video.go
  */
 package entities
 
@@ -62,5 +62,34 @@ type SearchVideoRespInfo struct {
 }
 
 type SearchVideoResp struct {
+	Info []*SearchVideoRespInfo `json:"info"` //结果
+}
+
+type LikeVideoReq struct {
+	Vid uint64 `json:"vid"`
+	Uid uint64 `json:"uid"`
+}
+
+type LikeVideoResp struct {
+}
+
+type CancelLikeVideoReq struct {
+	Vid uint64 `json:"vid"`
+	Uid uint64 `json:"uid"`
+}
+
+type CancelLikeVideoResp struct {
+}
+
+type TagLikes struct {
+	Tag   string
+	Likes int
+}
+
+type RecommendedVideoReq struct {
+	Uid uint64 `json:"uid"`
+}
+
+type RecommendedVideoResp struct {
 	Info []*SearchVideoRespInfo `json:"info"` //结果
 }

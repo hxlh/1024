@@ -1,8 +1,8 @@
 /*
  * @Date: 2023-10-24 16:01:32
  * @LastEditors: hxlh
- * @LastEditTime: 2023-11-02 14:16:40
- * @FilePath: /1024-dev/1024/server/src/controller/video_controller.go
+ * @LastEditTime: 2023-11-03 12:31:03
+ * @FilePath: /1024/server/src/controller/video_controller.go
  */
 package controller
 
@@ -179,4 +179,56 @@ func (t *VideoController) SearchVideo(c *gin.Context) {
 
 	resp.Data = res
 	return
+}
+
+func (t*VideoController) LikeVideo(c*gin.Context){
+	ctxValue, _ := c.Get("ctx")
+	ctx := ctxValue.(context.Context)
+	code := http.StatusOK
+	resp := entities.RespMsg{
+		Status: "ok",
+	}
+	defer func() {
+		c.JSON(code, resp)
+	}()
+	
+	req := entities.LikeVideoReq{}
+	err := t.getBodyToJson(c, &code, &resp, &req)
+	if err != nil {
+		return
+	}
+	res,err:=t.service.LikeVideo(ctx,req)
+	if err != nil {
+		code=http.StatusInternalServerError
+		resp.Status="error"
+		resp.Data=err.Error()
+		return
+	}
+	resp.Data=res
+}
+
+func (t*VideoController) CancelLikeVideo(c*gin.Context){
+	ctxValue, _ := c.Get("ctx")
+	ctx := ctxValue.(context.Context)
+	code := http.StatusOK
+	resp := entities.RespMsg{
+		Status: "ok",
+	}
+	defer func() {
+		c.JSON(code, resp)
+	}()
+	
+	req := entities.CancelLikeVideoReq{}
+	err := t.getBodyToJson(c, &code, &resp, &req)
+	if err != nil {
+		return
+	}
+	res,err:=t.service.CancelLikeVideo(ctx,req)
+	if err != nil {
+		code=http.StatusInternalServerError
+		resp.Status="error"
+		resp.Data=err.Error()
+		return
+	}
+	resp.Data=res
 }

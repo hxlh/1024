@@ -1,7 +1,7 @@
 /*
  * @Date: 2023-10-28 11:34:17
  * @LastEditors: hxlh
- * @LastEditTime: 2023-11-01 16:34:55
+ * @LastEditTime: 2023-11-03 11:17:16
  * @FilePath: /1024/server/src/entities/account.go
  */
 package entities
@@ -23,10 +23,11 @@ type LoginReq struct {
 }
 
 type LoginResp struct {
-	Uid          uint64    `json:"uid"`
-	Username     string    `json:"username"`
-	NickName     string    `json:"nickname"`
-	Avatar       string    `json:"avatar"`
+	Uid      uint64 `json:"uid"`
+	Username string `json:"username"`
+	NickName string `json:"nickname"`
+	Avatar   string `json:"avatar"`
+	Token    string `json:"token"`
 }
 
 type RegisterReq struct {

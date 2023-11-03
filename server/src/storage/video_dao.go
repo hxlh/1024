@@ -1,8 +1,8 @@
 /*
  * @Date: 2023-10-24 16:29:27
  * @LastEditors: hxlh
- * @LastEditTime: 2023-11-02 15:12:41
- * @FilePath: /1024-dev/1024/server/src/storage/video_dao.go
+ * @LastEditTime: 2023-11-03 12:56:46
+ * @FilePath: /1024/server/src/storage/video_dao.go
  */
 package storage
 
@@ -13,26 +13,67 @@ import (
 
 type VideoDao interface {
 	Create(ctx context.Context, upLoadVideoReq *entities.VideoInfo) (uint64, error)
+
 	GetVKeyByID(ctx context.Context, vid uint64) (string, error)
+
 	GetUploadCompleteByID(ctx context.Context, vid uint64) (uint64, int, error)
-	SearchVideo(ctx context.Context, key string, offset int, size int) (map[string]interface{}, error)
+
+	VideoIndexSearch(ctx context.Context, key string, offset int, size int) (map[string]interface{}, error)
+
 	GetBy(ctx context.Context, keys []string, values []any, by string, byValue any) error
+
 	UpdateBy(ctx context.Context, keys []string, values []any, by string, byValue any) error
-	AddToElasticsearch(ctx context.Context, videoinfo *entities.VideoInfo) error
+
+	VideoIndexAdd(ctx context.Context, videoinfo *entities.VideoInfo) error
+
+	UserLikesIndexAdd(ctx context.Context, vid uint64, uid uint64, likeTime int64) error
+
+	UserLikesIndexDel(ctx context.Context, vid uint64, uid uint64) error
+
+	UserTagsIndexAdd(ctx context.Context, uid uint64) error
+
+	UserTagsIndexUpdate(ctx context.Context, uid uint64, tags []entities.TagLikes) error
+
+	UserTagsIndexDel(ctx context.Context, uid uint64, tags []entities.TagLikes) error
 }
 
 type VideoDaoBase struct {
 	instance VideoDao
 }
 
-// UpdateBy implements VideoDao.
-func (t*VideoDaoBase) UpdateBy(ctx context.Context, keys []string, values []any, by string, byValue any) error {
-	return t.instance.UpdateBy(ctx,keys,values,by,byValue)
+// UserTagsIndexAdd implements VideoDao.
+func (t*VideoDaoBase) UserTagsIndexAdd(ctx context.Context, uid uint64) error {
+	return t.instance.UserTagsIndexAdd(ctx,uid)
 }
 
-// AddToElasticsearch implements VideoDao.
-func (t *VideoDaoBase) AddToElasticsearch(ctx context.Context, videoinfo *entities.VideoInfo) error {
-	return t.instance.AddToElasticsearch(ctx, videoinfo)
+// UserTagsIndexDel implements VideoDao.
+func (t*VideoDaoBase) UserTagsIndexDel(ctx context.Context, uid uint64, tags []entities.TagLikes) error {
+	return t.instance.UserTagsIndexDel(ctx,uid,tags)
+}
+
+// UserTagsIndexUpdate implements VideoDao.
+func (t*VideoDaoBase) UserTagsIndexUpdate(ctx context.Context, uid uint64, tags []entities.TagLikes) error {
+	return t.instance.UserTagsIndexUpdate(ctx,uid,tags)
+}
+
+// UserLikesIndexAdd implements VideoDao.
+func (t *VideoDaoBase) UserLikesIndexAdd(ctx context.Context, vid uint64, uid uint64, likeTime int64) error {
+	return t.instance.UserLikesIndexAdd(ctx, vid, uid, likeTime)
+}
+
+// UserLikesIndexDel implements VideoDao.
+func (t *VideoDaoBase) UserLikesIndexDel(ctx context.Context, vid uint64, uid uint64) error {
+	return t.instance.UserLikesIndexDel(ctx, vid, uid)
+}
+
+// UpdateBy implements VideoDao.
+func (t *VideoDaoBase) UpdateBy(ctx context.Context, keys []string, values []any, by string, byValue any) error {
+	return t.instance.UpdateBy(ctx, keys, values, by, byValue)
+}
+
+// VideoIndexAdd implements VideoDao.
+func (t *VideoDaoBase) VideoIndexAdd(ctx context.Context, videoinfo *entities.VideoInfo) error {
+	return t.instance.VideoIndexAdd(ctx, videoinfo)
 }
 
 // GetBy implements VideoDao.
@@ -40,9 +81,9 @@ func (t *VideoDaoBase) GetBy(ctx context.Context, keys []string, values []any, b
 	return t.instance.GetBy(ctx, keys, values, by, byValue)
 }
 
-// SearchVideo implements VideoDao.
-func (t *VideoDaoBase) SearchVideo(ctx context.Context, key string, offset int, size int) (map[string]interface{}, error) {
-	return t.instance.SearchVideo(ctx, key, offset, size)
+// VideoIndexSearch implements VideoDao.
+func (t *VideoDaoBase) VideoIndexSearch(ctx context.Context, key string, offset int, size int) (map[string]interface{}, error) {
+	return t.instance.VideoIndexSearch(ctx, key, offset, size)
 }
 
 // GetUploadCompleteByID implements VideoDao.

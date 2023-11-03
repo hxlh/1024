@@ -1,8 +1,8 @@
 /*
  * @Date: 2023-10-24 03:35:04
  * @LastEditors: hxlh
- * @LastEditTime: 2023-11-02 13:05:56
- * @FilePath: /1024-dev/1024/server/src/main.go
+ * @LastEditTime: 2023-11-03 12:43:35
+ * @FilePath: /1024/server/src/main.go
  */
 
 package main
@@ -154,13 +154,15 @@ func main() {
 	videoGroup.POST("/upload", videoController.UpLoadVideo)
 	videoGroup.POST("/upload_callback", videoController.UpLoadVideoCallBack)
 	videoGroup.POST("/search", videoController.SearchVideo)
+	videoGroup.POST("/like", videoController.LikeVideo)
+	videoGroup.POST("/cancel_like", videoController.CancelLikeVideo)
 
 	r.Static("/static/", "static/")
 	r.Run(fmt.Sprintf(":%v", config.GetConfig().Server.Port))
 }
 
 func SetCrossDomain(c *gin.Context) {
-	c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+	c.Writer.Header().Set("Access-Control-Allow-Origin", "http://localhost:5173")
 	c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 	c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 	c.Writer.Header().Set("Access-Control-Max-Age", "86400")

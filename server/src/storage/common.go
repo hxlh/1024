@@ -1,7 +1,7 @@
 /*
  * @Date: 2023-10-28 11:45:15
  * @LastEditors: hxlh
- * @LastEditTime: 2023-11-01 18:09:15
+ * @LastEditTime: 2023-11-03 13:08:19
  * @FilePath: /1024/server/src/storage/common.go
  */
 package storage
@@ -74,7 +74,7 @@ func SelectTableBy(tx *sql.Tx, table string, keys []string, values []any, by str
 	return nil
 }
 
-func UpdateTableBy(tx *sql.Tx, table string, keys []string, values []any, by string, byValue any) (error) {
+func UpdateTableBy(tx *sql.Tx, table string, keys []string, values []any, by string, byValue any) error {
 	sets := strings.Builder{}
 	sets.WriteString(keys[0] + "=?")
 	for i := 1; i < len(keys); i++ {
@@ -98,7 +98,7 @@ func UpdateTableBy(tx *sql.Tx, table string, keys []string, values []any, by str
 	return nil
 }
 
-func InsertTableWith(tx *sql.Tx, table string, keys []string, values []any) (int64,error) {
+func InsertTableWith(tx *sql.Tx, table string, keys []string, values []any) (int64, error) {
 	// 构造field
 	sets := strings.Builder{}
 	sets.WriteString(keys[0])
@@ -114,16 +114,16 @@ func InsertTableWith(tx *sql.Tx, table string, keys []string, values []any) (int
 		qms.WriteString("?")
 	}
 
-	sql := fmt.Sprintf("INSERT INTO %v(%v) VALUES(%v)", table, sets.String(),qms.String())
+	sql := fmt.Sprintf("INSERT INTO %v(%v) VALUES(%v)", table, sets.String(), qms.String())
 	stmt, err := tx.Prepare(sql)
 	if err != nil {
-		return 0,err
+		return 0, err
 	}
 	defer stmt.Close()
 
 	res, err := stmt.Exec(values...)
 	if err != nil {
-		return 0,err
+		return 0, err
 	}
 
 	return res.LastInsertId()

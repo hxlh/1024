@@ -1,8 +1,8 @@
 /*
  * @Date: 2023-10-25 05:59:02
  * @LastEditors: hxlh
- * @LastEditTime: 2023-11-02 15:07:40
- * @FilePath: /1024-dev/1024/server/src/storage/video_dao_impl.go
+ * @LastEditTime: 2023-11-03 14:00:34
+ * @FilePath: /1024/server/src/storage/video_dao_impl.go
  */
 package storage
 
@@ -20,10 +20,191 @@ import (
 
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/pkg/errors"
+	"github.com/tidwall/gjson"
 )
 
 type VideoDaoImpl struct {
 	objectStorage object.ObjectStorage
+}
+
+// UserTagsIndexUpdate implements VideoDao.
+func (*VideoDaoImpl) UserTagsIndexAdd(ctx context.Context, uid uint64) error {
+	pool := ctx.Value("elastic.pool").(*sync.Pool)
+	client := pool.Get().(*elasticsearch.Client)
+	defer pool.Put(client)
+
+	body := fmt.Sprintf(`
+	{
+		"uid": %v,
+		"tags": {}
+	}
+	`,
+		uid,
+	)
+
+	resp, err := client.Index("user_tags", strings.NewReader(body), client.Index.WithDocumentID(fmt.Sprintf("%v", uid)))
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	defer resp.Body.Close()
+
+	return nil
+}
+
+// UserTagsIndexAdd implements VideoDao.
+func (t *VideoDaoImpl) UserTagsIndexUpdate(ctx context.Context, uid uint64, tags []entities.TagLikes) error {
+	pool := ctx.Value("elastic.pool").(*sync.Pool)
+	client := pool.Get().(*elasticsearch.Client)
+	defer pool.Put(client)
+
+	builder := strings.Builder{}
+	builder.WriteString("\"")
+	builder.WriteString("tags." + tags[0].Tag)
+	builder.WriteString("\"")
+	for i := 1; i < len(tags); i++ {
+		builder.WriteString(",")
+		builder.WriteString("\"")
+		builder.WriteString("tags." + tags[i].Tag)
+		builder.WriteString("\"")
+	}
+
+	// 查询原来的值，再递增
+	body := fmt.Sprintf(`
+	{
+		"query": {
+			"term":{
+				"uid":%v
+			}
+		},
+		"_source": [
+			%v
+		]
+	}
+	`, uid, builder.String())
+
+	resp, err := client.Search(client.Search.WithIndex("user_tags"), client.Search.WithBody(strings.NewReader(body)))
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		resp.Body.Close()
+		return errors.WithStack(err)
+	}
+	resp.Body.Close()
+
+	res := gjson.GetBytes(data, "hits")
+	num := res.Get("total.value").Int()
+	if num == 0 {
+		// 没有这个用户文档
+		err = t.UserTagsIndexAdd(ctx, uid)
+		if err != nil {
+			return errors.WithStack(err)
+		}
+	} else {
+		source := res.Get("hits").Array()[0].Get("_source")
+		tagsSource := source.Get("tags")
+		for i := 0; i < len(tags); i++ {
+			tmp := tagsSource.Get(tags[i].Tag)
+			if !tmp.Exists() {
+				continue
+			}
+			tags[i].Likes += int(tmp.Int())
+		}
+	}
+
+	// 写回
+	builder = strings.Builder{}
+	builder.WriteString("\"")
+	builder.WriteString(tags[0].Tag)
+	builder.WriteString("\"")
+	builder.WriteString(":")
+	builder.WriteString(fmt.Sprintf("%v", tags[0].Likes))
+	for i := 1; i < len(tags); i++ {
+		builder.WriteString(",")
+		builder.WriteString("\"")
+		builder.WriteString(tags[i].Tag)
+		builder.WriteString("\"")
+		builder.WriteString(":")
+		builder.WriteString(fmt.Sprintf("%v", tags[i].Likes))
+	}
+	body = fmt.Sprintf(`
+	{
+		"doc":{
+			"tags":{
+				%v
+			}
+		}
+	}
+	`, builder.String())
+
+	resp, err = client.Update("user_tags", fmt.Sprintf("%v", uid), strings.NewReader(body))
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	defer resp.Body.Close()
+
+	return nil
+}
+
+// UserTagsIndexDel implements VideoDao.
+func (t *VideoDaoImpl) UserTagsIndexDel(ctx context.Context, uid uint64, tags []entities.TagLikes) error {
+	return t.UserTagsIndexUpdate(ctx, uid, tags)
+}
+
+// UserLikesIndexAdd implements VideoDao.
+func (t *VideoDaoImpl) UserLikesIndexAdd(ctx context.Context, vid uint64, uid uint64, likeTime int64) error {
+	pool := ctx.Value("elastic.pool").(*sync.Pool)
+	client := pool.Get().(*elasticsearch.Client)
+	defer pool.Put(client)
+
+	body := fmt.Sprintf(`
+	{
+		"vid": %v,
+		"uid": %v,
+		"like_time": %v
+	}
+	`,
+		vid,
+		uid,
+		time.Now().Unix(),
+	)
+
+	resp, err := client.Index("user_likes", strings.NewReader(body))
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	defer resp.Body.Close()
+	return nil
+}
+
+// UserLikesIndexDel implements VideoDao.
+func (*VideoDaoImpl) UserLikesIndexDel(ctx context.Context, vid uint64, uid uint64) error {
+	pool := ctx.Value("elastic.pool").(*sync.Pool)
+	client := pool.Get().(*elasticsearch.Client)
+	defer pool.Put(client)
+
+	body := fmt.Sprintf(`
+	{
+		"query": {
+		  "bool": {
+			"must": [
+			  { "term": { "vid": %v }},
+			  { "term": { "uid": %v }}
+			]
+		  }
+		}
+	}
+	`,
+		vid,
+		uid,
+	)
+	resp, err := client.DeleteByQuery([]string{"user_likes"}, strings.NewReader(body))
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	defer resp.Body.Close()
+	return nil
 }
 
 // UpdateBy implements VideoDao.
@@ -32,13 +213,13 @@ func (*VideoDaoImpl) UpdateBy(ctx context.Context, keys []string, values []any, 
 	if err != nil {
 		return err
 	}
-	err=UpdateTableBy(tx,"video1024.video_info",keys,values,by,byValue)
+	err = UpdateTableBy(tx, "video1024.video_info", keys, values, by, byValue)
 
 	return errors.WithStack(err)
 }
 
-// AddToElasticsearch implements VideoDao.
-func (t *VideoDaoImpl) AddToElasticsearch(ctx context.Context, videoinfo *entities.VideoInfo) error {
+// VideoIndexAdd implements VideoDao.
+func (t *VideoDaoImpl) VideoIndexAdd(ctx context.Context, videoinfo *entities.VideoInfo) error {
 	pool := ctx.Value("elastic.pool").(*sync.Pool)
 	client := pool.Get().(*elasticsearch.Client)
 	defer pool.Put(client)
@@ -79,8 +260,8 @@ func (*VideoDaoImpl) GetBy(ctx context.Context, keys []string, values []any, by 
 	return errors.WithStack(SelectTableBy(tx, "video1024.video_info", keys, values, by, byValue))
 }
 
-// SearchVideo implements VideoDao.
-func (*VideoDaoImpl) SearchVideo(ctx context.Context, key string, offset int, size int) (map[string]interface{}, error) {
+// VideoIndexSearch implements VideoDao.
+func (*VideoDaoImpl) VideoIndexSearch(ctx context.Context, key string, offset int, size int) (map[string]interface{}, error) {
 	pool := ctx.Value("elastic.pool").(*sync.Pool)
 	client := pool.Get().(*elasticsearch.Client)
 	defer pool.Put(client)
