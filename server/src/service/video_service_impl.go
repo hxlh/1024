@@ -1,7 +1,7 @@
 /*
  * @Date: 2023-10-25 05:33:57
  * @LastEditors: hxlh
- * @LastEditTime: 2023-11-03 13:09:53
+ * @LastEditTime: 2023-11-03 15:53:12
  * @FilePath: /1024/server/src/service/video_service_impl.go
  */
 package service
@@ -124,7 +124,6 @@ func (t *VideoServiceImpl) SearchVideo(ctx context.Context, key string, offset i
 
 	hits, ok := resp["hits"].(map[string]interface{})
 	fmt.Println(resp)
-	panic("SearchVideo not finished")
 	if !ok {
 		return res, nil
 	}
