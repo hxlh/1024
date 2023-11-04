@@ -1,0 +1,43 @@
+video::-webkit-media-controls {
+}
+
+.custom-controls {
+    display: flex;
+    justify-content: space-between;
+    background-color: rgba(0, 0, 0, 0.5);
+    padding: 10px;
+    width: 100%;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+}
+
+.play-pause-button, .mute-button, .fullscreen-button {
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+}
+
+.video-progress {
+    flex: 1;
+    margin: 0 10px;
+}
+
+.video-progress input[type="range"] {
+    width: 100%;
+    height: 10px;
+    background-color: #ccc;
+    border: none;
+    border-radius: 5px;
+    outline: none;
+    appearance: none;
+}
+
+.video-progress input[type="range"]::-webkit-slider-thumb {
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    background-color: #007bff;
+    border-radius: 50%;
+    cursor: pointer;
+}
