@@ -3,11 +3,9 @@
     <div v-for="video in videos" :key="video.vid" class="video-card">
       <img :src="video.thumbnail" alt="视频缩略图" class="thumbnail" />
       <div class="video-info">
-        <!-- v-html 用来渲染高亮字幕，确保这里的内容是安全的，避免 XSS 攻击 -->
         <div class="video-title" v-html="video.highlight_subtitled"></div>
         <div class="video-details">
           <span class="likes">{{ video.likes }} ❤️</span>
-          <!-- 这里假设 formatUploadTime 已经在 methods 里定义好 -->
           <span class="upload-time">{{ formatUploadTime(video.upload_time) }}前</span>
         </div>
       </div>
@@ -22,9 +20,9 @@ export default {
   name: "VideoSearchResult",
   setup() {
     const route = useRoute();
-    const query = route.query;
-
-    // 使用 searchKey 来获取和显示搜索结果
+    return {
+      videos: route.params.videos,
+    };
   },
   props: {
     videos: {
@@ -34,7 +32,6 @@ export default {
   },
   methods: {
     formatUploadTime(timestamp) {
-      // 这里需要添加将时间戳格式化为可读时间的逻辑
       const date = new Date(timestamp);
       const now = new Date();
       const diff = now - date;
