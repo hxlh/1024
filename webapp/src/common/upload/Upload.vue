@@ -99,7 +99,7 @@ export default {
         },
         complete(res) {
           console.log('上传完成: ', res);
-          const vid = localStorage.getItem('vid').toString();
+          const vid = parseInt(localStorage.getItem('vid'))
           callBackUpload(vid).then(response=>{
             console.log("服务器确认上传成功！",response)
           })
