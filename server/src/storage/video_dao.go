@@ -1,13 +1,14 @@
 /*
  * @Date: 2023-10-24 16:29:27
  * @LastEditors: hxlh
- * @LastEditTime: 2023-11-03 12:56:46
+ * @LastEditTime: 2023-11-04 16:06:42
  * @FilePath: /1024/server/src/storage/video_dao.go
  */
 package storage
 
 import (
 	"context"
+	"database/sql"
 	"dev1024/src/entities"
 )
 
@@ -26,6 +27,8 @@ type VideoDao interface {
 
 	VideoIndexAdd(ctx context.Context, videoinfo *entities.VideoInfo) error
 
+	VideoIndexLikesInc(ctx context.Context, vid uint64, inc int) error
+
 	UserLikesIndexAdd(ctx context.Context, vid uint64, uid uint64, likeTime int64) error
 
 	UserLikesIndexDel(ctx context.Context, vid uint64, uid uint64) error
@@ -35,25 +38,37 @@ type VideoDao interface {
 	UserTagsIndexUpdate(ctx context.Context, uid uint64, tags []entities.TagLikes) error
 
 	UserTagsIndexDel(ctx context.Context, uid uint64, tags []entities.TagLikes) error
+
+	SelectWhereIn(ctx context.Context, table string, keys []string, in string, values []any) (*sql.Rows, error)
 }
 
 type VideoDaoBase struct {
 	instance VideoDao
 }
 
+// SelectWhereIn implements VideoDao.
+func (t*VideoDaoBase) SelectWhereIn(ctx context.Context, table string, keys []string, in string, values []any) (*sql.Rows, error) {
+	return t.instance.SelectWhereIn(ctx,table,keys,in,values)
+}
+
+// VideoIndexLikesInc implements VideoDao.
+func (t *VideoDaoBase) VideoIndexLikesInc(ctx context.Context, vid uint64, inc int) error {
+	return t.instance.VideoIndexLikesInc(ctx, vid, inc)
+}
+
 // UserTagsIndexAdd implements VideoDao.
-func (t*VideoDaoBase) UserTagsIndexAdd(ctx context.Context, uid uint64) error {
-	return t.instance.UserTagsIndexAdd(ctx,uid)
+func (t *VideoDaoBase) UserTagsIndexAdd(ctx context.Context, uid uint64) error {
+	return t.instance.UserTagsIndexAdd(ctx, uid)
 }
 
 // UserTagsIndexDel implements VideoDao.
-func (t*VideoDaoBase) UserTagsIndexDel(ctx context.Context, uid uint64, tags []entities.TagLikes) error {
-	return t.instance.UserTagsIndexDel(ctx,uid,tags)
+func (t *VideoDaoBase) UserTagsIndexDel(ctx context.Context, uid uint64, tags []entities.TagLikes) error {
+	return t.instance.UserTagsIndexDel(ctx, uid, tags)
 }
 
 // UserTagsIndexUpdate implements VideoDao.
-func (t*VideoDaoBase) UserTagsIndexUpdate(ctx context.Context, uid uint64, tags []entities.TagLikes) error {
-	return t.instance.UserTagsIndexUpdate(ctx,uid,tags)
+func (t *VideoDaoBase) UserTagsIndexUpdate(ctx context.Context, uid uint64, tags []entities.TagLikes) error {
+	return t.instance.UserTagsIndexUpdate(ctx, uid, tags)
 }
 
 // UserLikesIndexAdd implements VideoDao.

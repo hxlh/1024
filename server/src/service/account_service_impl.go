@@ -1,7 +1,7 @@
 /*
  * @Date: 2023-10-27 07:58:50
  * @LastEditors: hxlh
- * @LastEditTime: 2023-11-01 16:45:44
+ * @LastEditTime: 2023-11-04 16:33:35
  * @FilePath: /1024/server/src/service/account_service_impl.go
  */
 package service
@@ -22,13 +22,13 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-const JWT_EXPIRE_DUR = time.Minute * 30
+const JWT_EXPIRE_DUR = 2 * time.Hour
 
 type MyCustomClaims struct {
 	jwt.RegisteredClaims
 	Uid       uint64 `json:"uid"`
 	Username  string `json:"username"`
-	LoginTime int64  `json:"deadline"`
+	LoginTime int64  `json:"deadline"` // 秒级时间戳
 }
 
 type AccountServiceImpl struct {

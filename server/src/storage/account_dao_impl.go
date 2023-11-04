@@ -1,8 +1,8 @@
 /*
  * @Date: 2023-10-28 09:38:27
  * @LastEditors: hxlh
- * @LastEditTime: 2023-11-02 14:52:56
- * @FilePath: /1024-dev/1024/server/src/storage/account_dao_impl.go
+ * @LastEditTime: 2023-11-04 16:34:07
+ * @FilePath: /1024/server/src/storage/account_dao_impl.go
  */
 package storage
 
@@ -18,7 +18,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-const SIGNKEY_EXPIRE_TIME = 1 * time.Hour
+const SIGNKEY_EXPIRE_TIME = 2 * time.Hour
 
 type AccountDaoImpl struct {
 }

@@ -1,7 +1,7 @@
 /*
  * @Date: 2023-10-24 03:35:04
  * @LastEditors: hxlh
- * @LastEditTime: 2023-11-03 12:43:35
+ * @LastEditTime: 2023-11-04 17:51:28
  * @FilePath: /1024/server/src/main.go
  */
 
@@ -149,14 +149,15 @@ func main() {
 	accountGroup.POST("/login", accountController.Login)
 
 	videoGroup := r.Group("/video")
+	videoGroup.GET("/recommended", videoController.Recommended)
 	videoGroup.Use(accountController.LoginAuthMiddleware())
-	videoGroup.GET("/url", videoController.GetVideoByID)
 	videoGroup.POST("/upload", videoController.UpLoadVideo)
 	videoGroup.POST("/upload_callback", videoController.UpLoadVideoCallBack)
 	videoGroup.POST("/search", videoController.SearchVideo)
 	videoGroup.POST("/like", videoController.LikeVideo)
 	videoGroup.POST("/cancel_like", videoController.CancelLikeVideo)
-
+	
+	
 	r.Static("/static/", "static/")
 	r.Run(fmt.Sprintf(":%v", config.GetConfig().Server.Port))
 }
