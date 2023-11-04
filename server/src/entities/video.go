@@ -14,7 +14,7 @@ type VideoInfo struct {
 	Subtitled      string `json:"subtitled"`       // 视频标题
 	Likes          int64  `json:"likes"`           // 该视频点赞数
 	Tags           string `json:"tags"`            // 视频的tags
-	UpLoadTime     int64  `json:"upload_time"`     // 上传的时间
+	UpLoadTime     int64  `json:"upload_time"`     // 上传的时间,毫秒时间戳
 	UpLoadComplete int    `json:"upload_complete"` // 上传是否完成，因为由客户端上传，服务端不到何时上传完成，需要有一个回调通知
 }
 
@@ -58,7 +58,7 @@ type SearchVideoRespInfo struct {
 	HighLightSubtitled string `json:"highlight_subtitled"` // 设置了高亮的视频标题
 	Likes              int64  `json:"likes"`               // 该视频点赞数
 	Tags               string `json:"tags"`                // 视频的tags
-	UpLoadTime         int64  `json:"upload_time"`         // 上传的时间
+	UpLoadTime         int64  `json:"upload_time"`         // 上传的时间，毫秒时间戳
 }
 
 type SearchVideoResp struct {

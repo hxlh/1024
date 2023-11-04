@@ -1,7 +1,7 @@
 /*
  * @Date: 2023-10-25 05:59:02
  * @LastEditors: hxlh
- * @LastEditTime: 2023-11-03 14:00:34
+ * @LastEditTime: 2023-11-04 16:06:19
  * @FilePath: /1024/server/src/storage/video_dao_impl.go
  */
 package storage
@@ -25,6 +25,100 @@ import (
 
 type VideoDaoImpl struct {
 	objectStorage object.ObjectStorage
+}
+
+// SelectWhereIn implements VideoDao.
+func (t *VideoDaoImpl) SelectWhereIn(ctx context.Context, table string, keys []string, in string, values []any) (*sql.Rows, error) {
+	ctx, tx, err := getTxFromCtx(ctx)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	b := strings.Builder{}
+	b.WriteString(keys[0])
+	for i := 1; i < len(keys); i++ {
+		b.WriteString(",")
+		b.WriteString(keys[i])
+	}
+	keysStr := b.String()
+
+	b = strings.Builder{}
+	b.WriteString(fmt.Sprintf("%v", values[0]))
+	for i := 1; i < len(values); i++ {
+		b.WriteString(",")
+		b.WriteString(fmt.Sprintf("%v", values[i]))
+	}
+	valuesStr := b.String()
+
+	query := fmt.Sprintf(`SELECT %v FROM %v WHERE %v in (%v)`, keysStr, table, in, valuesStr)
+
+	rows, err := tx.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
+// VideoIndexLikesInc implements VideoDao.
+func (t *VideoDaoImpl) VideoIndexLikesInc(ctx context.Context, vid uint64, inc int) error {
+	pool := ctx.Value("elastic.pool").(*sync.Pool)
+	client := pool.Get().(*elasticsearch.Client)
+	defer pool.Put(client)
+
+	// 查询这个vid的点赞数量
+	body := fmt.Sprintf(`
+	{
+		"query":{
+			"term":{
+				"vid":%v
+			}
+		},
+		"_source":["likes"]
+	}
+	`, vid)
+	resp, err := client.Search(client.Search.WithIndex("videoinfo"), client.Search.WithBody(strings.NewReader(body)))
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	data, err := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	hits := gjson.GetBytes(data, "hits")
+	if !hits.Exists() {
+		return errors.New(string(data))
+	}
+	total := hits.Get("total.value").Int()
+	if total == 0 {
+		return errors.New("Not such document")
+	}
+	likes := hits.Get("hits").Array()[0].Get("_source.likes").Int()
+
+	// 增加后写回
+	likes += int64(inc)
+	body = fmt.Sprintf(`
+	{
+		"query": {
+			"term": {
+				"vid": %v
+			}
+		},
+		"script": {
+			"source": "ctx._source.likes=%v"
+		}
+	}
+	`, vid, likes)
+	resp, err = client.UpdateByQuery([]string{"videoinfo"}, client.UpdateByQuery.WithBody(strings.NewReader(body)))
+	if err != nil {
+		return err
+	}
+	data, err = io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // UserTagsIndexUpdate implements VideoDao.
@@ -167,7 +261,7 @@ func (t *VideoDaoImpl) UserLikesIndexAdd(ctx context.Context, vid uint64, uid ui
 	`,
 		vid,
 		uid,
-		time.Now().Unix(),
+		likeTime,
 	)
 
 	resp, err := client.Index("user_likes", strings.NewReader(body))

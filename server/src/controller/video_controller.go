@@ -1,7 +1,7 @@
 /*
  * @Date: 2023-10-24 16:01:32
  * @LastEditors: hxlh
- * @LastEditTime: 2023-11-03 12:31:03
+ * @LastEditTime: 2023-11-04 17:52:49
  * @FilePath: /1024/server/src/controller/video_controller.go
  */
 package controller
@@ -181,7 +181,7 @@ func (t *VideoController) SearchVideo(c *gin.Context) {
 	return
 }
 
-func (t*VideoController) LikeVideo(c*gin.Context){
+func (t *VideoController) LikeVideo(c *gin.Context) {
 	ctxValue, _ := c.Get("ctx")
 	ctx := ctxValue.(context.Context)
 	code := http.StatusOK
@@ -191,23 +191,23 @@ func (t*VideoController) LikeVideo(c*gin.Context){
 	defer func() {
 		c.JSON(code, resp)
 	}()
-	
+
 	req := entities.LikeVideoReq{}
 	err := t.getBodyToJson(c, &code, &resp, &req)
 	if err != nil {
 		return
 	}
-	res,err:=t.service.LikeVideo(ctx,req)
+	res, err := t.service.LikeVideo(ctx, req)
 	if err != nil {
-		code=http.StatusInternalServerError
-		resp.Status="error"
-		resp.Data=err.Error()
+		code = http.StatusInternalServerError
+		resp.Status = "error"
+		resp.Data = err.Error()
 		return
 	}
-	resp.Data=res
+	resp.Data = res
 }
 
-func (t*VideoController) CancelLikeVideo(c*gin.Context){
+func (t *VideoController) CancelLikeVideo(c *gin.Context) {
 	ctxValue, _ := c.Get("ctx")
 	ctx := ctxValue.(context.Context)
 	code := http.StatusOK
@@ -217,18 +217,57 @@ func (t*VideoController) CancelLikeVideo(c*gin.Context){
 	defer func() {
 		c.JSON(code, resp)
 	}()
-	
+
 	req := entities.CancelLikeVideoReq{}
 	err := t.getBodyToJson(c, &code, &resp, &req)
 	if err != nil {
 		return
 	}
-	res,err:=t.service.CancelLikeVideo(ctx,req)
+	res, err := t.service.CancelLikeVideo(ctx, req)
 	if err != nil {
-		code=http.StatusInternalServerError
-		resp.Status="error"
-		resp.Data=err.Error()
+		code = http.StatusInternalServerError
+		resp.Status = "error"
+		resp.Data = err.Error()
 		return
 	}
-	resp.Data=res
+	resp.Data = res
+}
+
+func (t *VideoController) Recommended(c *gin.Context) {
+	ctxValue, _ := c.Get("ctx")
+	ctx := ctxValue.(context.Context)
+	code := http.StatusOK
+	resp := entities.RespMsg{
+		Status: "ok",
+	}
+	defer func() {
+		c.JSON(code, resp)
+	}()
+
+	req := entities.RecommendedVideoReq{}
+
+	uid := c.Query("uid")
+	// 未登录
+	if uid == "" {
+		req.Uid = 0
+	} else {
+		u, err := strconv.ParseUint(uid, 10, 64)
+		if err != nil {
+			code = http.StatusBadRequest
+			resp.Status = "error"
+			resp.Data = "Failed to resolve uid."
+			return
+		}
+		req.Uid = u
+	}
+
+	res, err := t.service.RecommendedVideo(ctx, req)
+	if err != nil {
+		code = http.StatusInternalServerError
+		resp.Status = "error"
+		resp.Data = err.Error()
+		return
+	}
+
+	resp.Data = res
 }
