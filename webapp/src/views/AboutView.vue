@@ -1,15 +1,13 @@
 <template>
-  <div class="about">
-    <h1>This is an about page</h1>
+  <div>
+    <h1>关于我们</h1>
+    <!-- 这里放置关于页面的其他内容 -->
   </div>
 </template>
 
-<style>
-@media (min-width: 1024px) {
-  .about {
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-  }
-}
+<script setup>
+</script>
+
+<style scoped>
+/* 添加关于页面组件的样式，如果需要的话 */
 </style>

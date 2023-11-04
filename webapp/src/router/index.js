@@ -1,21 +1,55 @@
-import { createRouter, createWebHistory } from 'vue-router'
-// import HomeView from '../views/HomeView.vue'
-import VideoView from '../views/VideoView.vue'
+import {createRouter, createWebHistory} from 'vue-router'
+import Upload from "../common/upload/Upload.vue";
+import Home from "../views/Home.vue";
+import Videos from "../common/videoList/Videos.vue";
+import VideoShow from "../common/videoList/VideoShow.vue";
+import AboutView from "@/views/AboutView.vue";
+import LoginModule from "@/common/user/LoginModule.vue";
+import VideoSearchResult from "@/common/videoList/VideoSearchResult.vue";
+import UserInfo from "@/common/user/UserInfo.vue";
+
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: '/',
       name: 'home',
-      component: VideoView
+      component: Home,
     },
     {
       path: '/about',
       name: 'about',
-      // route level code-splitting
-      // this generates a separate chunk (About.[hash].js) for this route
-      // which is lazy-loaded when the route is visited.
-      component: () => import('../views/AboutView.vue')
+      component: AboutView
+    },
+    {
+      path: '/videos',
+      name: 'videos',
+      component: Videos
+    },
+    {
+      path: '/test',
+      name: 'test',
+      component: Videos
+    },
+    {
+      path: '/upload',
+      name: 'upload',
+      component: Upload
+    },
+    {
+      path:'/login',
+      name:'login',
+      component:LoginModule,
+    },
+    {
+      path:'/search',
+      name:'search',
+      component:VideoSearchResult,
+    },
+    {
+      path:'/userinfo',
+      name:'userinfo',
+      component:UserInfo,
     }
   ]
 })
