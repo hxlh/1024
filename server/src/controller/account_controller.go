@@ -1,12 +1,13 @@
 /*
  * @Date: 2023-10-27 07:56:30
  * @LastEditors: hxlh
- * @LastEditTime: 2023-10-29 09:08:12
+ * @LastEditTime: 2023-11-03 12:46:18
  * @FilePath: /1024/server/src/controller/account_controller.go
  */
 package controller
 
 import (
+	"context"
 	"dev1024/src/entities"
 	"dev1024/src/log"
 	"dev1024/src/service"
@@ -29,7 +30,7 @@ func NewAccountController(accountService service.AccountService, logger log.Logg
 	}
 }
 
-func (t *AccountController) getBodyToJson(c *gin.Context, code *int, resp *RespMsg, obj any) error {
+func (t *AccountController) getBodyToJson(c *gin.Context, code *int, resp *entities.RespMsg, obj any) error {
 	buf := make([]byte, READ_BUFFER_SIZE)
 	n, err := c.Request.Body.Read(buf)
 	if n <= 0 && err != nil {
@@ -51,8 +52,10 @@ func (t *AccountController) getBodyToJson(c *gin.Context, code *int, resp *RespM
 }
 
 func (t *AccountController) Login(c *gin.Context) {
+	ctxValue, _ := c.Get("ctx")
+	ctx := ctxValue.(context.Context)
 	code := http.StatusOK
-	resp := RespMsg{
+	resp := entities.RespMsg{
 		Status: "ok",
 	}
 	defer func() {
@@ -62,11 +65,14 @@ func (t *AccountController) Login(c *gin.Context) {
 	req := entities.LoginReq{}
 
 	if err := t.getBodyToJson(c, &code, &resp, &req); err != nil {
+		code = http.StatusBadRequest
+		resp.Status = "error"
+		resp.Data = "Request parse error"
 		t.logger.Error(errWithStack(err))
 		return
 	}
 
-	info, err := t.service.Login(req.UserName, req.Pwd)
+	account, token, err := t.service.Login(ctx, req.UserName, req.Pwd)
 	if err != nil {
 		code = http.StatusBadRequest
 		resp.Status = "error"
@@ -74,18 +80,22 @@ func (t *AccountController) Login(c *gin.Context) {
 		t.logger.Error(errWithStack(err))
 		return
 	}
-	c.SetCookie("jwt_token", info.Token, 3600, "", "", false, true)
 
 	loginResp := entities.LoginResp{
-		Uid:      info.Uid,
-		UserName: info.UserName,
+		Uid:      account.Uid,
+		Username: account.Username,
+		NickName: account.NickName,
+		Avatar:   account.Avatar,
+		Token:    token,
 	}
 	resp.Data = loginResp
 }
 
 func (t *AccountController) Register(c *gin.Context) {
+	ctxValue, _ := c.Get("ctx")
+	ctx := ctxValue.(context.Context)
 	code := http.StatusOK
-	resp := RespMsg{
+	resp := entities.RespMsg{
 		Status: "ok",
 	}
 	defer func() {
@@ -99,7 +109,7 @@ func (t *AccountController) Register(c *gin.Context) {
 		return
 	}
 
-	err := t.service.Register(&entities.Account{
+	err := t.service.Register(ctx, &entities.Account{
 		Username: req.UserName,
 		NickName: req.NickName,
 		Pwd:      req.Pwd,
@@ -114,26 +124,27 @@ func (t *AccountController) Register(c *gin.Context) {
 
 func (t *AccountController) LoginAuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		ctxValue, _ := c.Get("ctx")
+		ctx := ctxValue.(context.Context)
 		code := http.StatusBadRequest
-		resp := RespMsg{
+		resp := entities.RespMsg{
 			Status: "error",
 			Data:   "Authentication failure",
 		}
-		token, err := c.Request.Cookie("jwt_token")
+		token, ok := c.Request.Header["Authorization"]
+		if !ok{
+			c.JSON(code, &resp)
+			c.Abort()
+			return
+		}
+		claim, err := t.service.JwtAuth(ctx, token[0])
 		if err != nil {
 			c.JSON(code, &resp)
 			c.Abort()
 			t.logger.Error(errWithStack(err))
 			return
 		}
-		err = t.service.JwtAuth(token.Value)
-		if err != nil {
-			c.JSON(code, &resp)
-			c.Abort()
-			t.logger.Error(errWithStack(err))
-			return
-		}
-
+		c.Set("claim", claim)
 		c.Next()
 	}
 }

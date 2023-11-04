@@ -1,78 +1,111 @@
 /*
  * @Date: 2023-10-28 09:38:27
  * @LastEditors: hxlh
- * @LastEditTime: 2023-10-28 13:00:28
- * @FilePath: /1024/server/src/storage/account_dao_impl.go
+ * @LastEditTime: 2023-11-02 14:52:56
+ * @FilePath: /1024-dev/1024/server/src/storage/account_dao_impl.go
  */
 package storage
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"dev1024/src/entities"
+	"encoding/hex"
+	"time"
 
 	"github.com/pkg/errors"
+	"github.com/redis/go-redis/v9"
 )
 
+const SIGNKEY_EXPIRE_TIME = 1 * time.Hour
+
 type AccountDaoImpl struct {
-	ctx    context.Context
-	baseDB *BaseDB
+}
+
+// GetAccountByID implements AccountDao.
+func (t*AccountDaoImpl) GetAccountByID(ctx context.Context, uid uint64) (entities.Account, error) {
+	var account entities.Account
+	ctx, tx, err := getTxFromCtx(ctx)
+	if err != nil {
+		return account, errors.WithStack(err)
+	}
+	var avatar sql.NullString
+	err = SelectTableBy(tx, "video1024.account", []string{
+		"username",
+		"nickname",
+		"pwd",
+		"avatar",
+	}, []any{
+		&account.Username,
+		&account.NickName,
+		&account.Pwd,
+		&avatar,
+	}, "uid", uid)
+	if err != nil {
+		return account, errors.WithStack(err)
+	}
+	account.Uid=uid
+	account.Avatar=avatar.String
+	return account,nil
 }
 
 // GetUidAndPwdByUsername implements AccountDao.
-func (t *AccountDaoImpl) GetUidAndPwdByUsername(username string) (uint64, string, error) {
-	tx, err := t.baseDB.DB.Begin()
+func (t *AccountDaoImpl) GetAccountByUsername(ctx context.Context, username string) (entities.Account, error) {
+	var account entities.Account
+	ctx, tx, err := getTxFromCtx(ctx)
 	if err != nil {
-		return 0, "", errors.WithStack(err)
+		return account, errors.WithStack(err)
 	}
-	uid, pwd, err := t.getUidAndPwdByUsername(tx, username)
-	return uid, pwd, commitOrRollback(err, tx)
+	return t.getAccountByUsername(tx, username)
 }
 
-func (t *AccountDaoImpl) getUidAndPwdByUsername(tx *sql.Tx, username string) (uint64, string, error) {
-	stmt, err := tx.Prepare("SELECT uid,pwd from video1024.account WHERE username = ?")
+func (t *AccountDaoImpl) getAccountByUsername(tx *sql.Tx, username string) (entities.Account, error) {
+	var account entities.Account
+	var avatar sql.NullString
+	err := SelectTableBy(tx, "video1024.account", []string{
+		"uid",
+		"nickname",
+		"pwd",
+		"avatar",
+	}, []any{
+		&account.Uid,
+		&account.NickName,
+		&account.Pwd,
+		&avatar,
+	}, "username", username)
 	if err != nil {
-		return 0, "", errors.WithStack(err)
+		return account, errors.WithStack(err)
 	}
-	defer stmt.Close()
-
-	rows, err := stmt.Query(username)
-	if err != nil {
-		return 0, "", errors.WithStack(err)
-	}
-	defer rows.Close()
-
-	if !rows.Next() {
-		return 0, "", errors.New("username does not exist")
-	}
-	var uid uint64
-	var pwd string
-	err = rows.Scan(&uid, &pwd)
-	if err != nil {
-		return 0, "", errors.WithStack(err)
-	}
-	return uid, pwd, nil
+	account.Avatar = avatar.String
+	return account, nil
 }
 
-// Save implements AccountDao.
-func (t *AccountDaoImpl) Save(account *entities.Account) (uint64, error) {
-	tx, err := t.baseDB.DB.Begin()
+// Create implements AccountDao.
+func (t *AccountDaoImpl) Create(ctx context.Context, account *entities.Account) (uint64, error) {
+	ctx, tx, err := getTxFromCtx(ctx)
 	if err != nil {
-		return 0, errors.WithStack(err)
+		return 0, err
 	}
-	uid, err := t.save(tx, account)
-	return uid, commitOrRollback(err, tx)
+	uid, err := t.create(tx, account)
+	return uid, err
 }
 
 // RegisterAccount implements AccountDao.
-func (t *AccountDaoImpl) save(tx *sql.Tx, account *entities.Account) (uint64, error) {
-	stmt, err := tx.Prepare("INSERT INTO video1024.account(username,nickname,pwd) VALUES(?,?,?)")
+func (t *AccountDaoImpl) create(tx *sql.Tx, account *entities.Account) (uint64, error) {
+	stmt, err := tx.Prepare("INSERT INTO video1024.account(username,nickname,pwd,register_time) VALUES(?,?,?,?)")
 	if err != nil {
 		return 0, errors.WithStack(err)
 	}
 	defer stmt.Close()
 
-	res, err := stmt.Exec(account.Username, account.NickName, account.Pwd)
+	hash := sha256.New()
+	hash.Write([]byte(account.Username))
+	hash.Write([]byte(account.Pwd))
+	hashByte := hash.Sum(nil)
+	hashStr := hex.EncodeToString(hashByte)
+
+	res, err := stmt.Exec(account.Username, account.NickName, hashStr,time.Now().UnixMilli())
 	if err != nil {
 		return 0, errors.WithStack(err)
 	}
@@ -85,37 +118,50 @@ func (t *AccountDaoImpl) save(tx *sql.Tx, account *entities.Account) (uint64, er
 }
 
 // DelJwtSignedKey implements AccountDao.
-func (t *AccountDaoImpl) DelJwtSignedKey() error {
-	err := t.baseDB.RC.Del(t.ctx, "jwt.sign_key").Err()
+func (t *AccountDaoImpl) DelJwtSignedKey(ctx context.Context) error {
+	ctx, conn, err := getRedisConnFromCtx(ctx)
 	if err != nil {
-		return errors.WithStack(err)
+		return err
+	}
+	err = conn.Del(ctx, "jwt.sign_key").Err()
+	if err != nil {
+		return err
 	}
 	return nil
 }
 
 // GetJwtSignedKey implements AccountDao.
-func (t *AccountDaoImpl) GetJwtSignedKey() (string, error) {
-	ans, err := t.baseDB.RC.Get(t.ctx, "jwt.sign_key").Result()
+func (t *AccountDaoImpl) GetJwtSignedKey(ctx context.Context) (string, error) {
+	ctx, conn, err := getRedisConnFromCtx(ctx)
 	if err != nil {
+		return "", err
+	}
+
+	ans, err := conn.Get(ctx, "jwt.sign_key").Result()
+	if err != nil {
+		if err == redis.Nil {
+			return "", redis.Nil
+		}
 		return "", errors.WithStack(err)
 	}
 	return ans, nil
 }
 
 // SetJwtSignedKey implements AccountDao.
-func (t *AccountDaoImpl) SetJwtSignedKey(key string) error {
-	err := t.baseDB.RC.Set(t.ctx, "jwt.sign_key", key, 0).Err()
+func (t *AccountDaoImpl) SetJwtSignedKey(ctx context.Context, key string) error {
+	ctx, conn, err := getRedisConnFromCtx(ctx)
+	if err != nil {
+		return err
+	}
+	err = conn.SetNX(ctx, "jwt.sign_key", key, SIGNKEY_EXPIRE_TIME).Err()
 	if err != nil {
 		return errors.WithStack(err)
 	}
 	return nil
 }
 
-func NewAccountDaoImpl(base *BaseDB, ctx context.Context) *AccountDaoImpl {
-	return &AccountDaoImpl{
-		ctx:    ctx,
-		baseDB: base,
-	}
+func NewAccountDaoImpl() *AccountDaoImpl {
+	return &AccountDaoImpl{}
 }
 
 var _ AccountDao = (*AccountDaoImpl)(nil)

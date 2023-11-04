@@ -1,7 +1,7 @@
 /*
  * @Date: 2023-10-24 03:35:04
  * @LastEditors: hxlh
- * @LastEditTime: 2023-10-29 09:02:23
+ * @LastEditTime: 2023-11-03 12:43:35
  * @FilePath: /1024/server/src/main.go
  */
 
@@ -16,7 +16,12 @@ import (
 	"dev1024/src/storage"
 	"dev1024/src/storage/object"
 	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"sync"
 
+	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/gin-gonic/gin"
 	_ "github.com/go-mysql-org/go-mysql/driver"
 	"github.com/pkg/errors"
@@ -26,9 +31,7 @@ import (
 
 const CONFIG_PATH = "server.yml"
 
-func main() {
-	config.ConfigInit(CONFIG_PATH)
-
+func CreateDB() *sql.DB {
 	databaseCfg := config.GetConfig().DataBases["mysql.video1024"]
 	username := databaseCfg["username"]
 	password := databaseCfg["password"]
@@ -40,7 +43,10 @@ func main() {
 	if err != nil {
 		panic(errors.WithStack(err))
 	}
+	return db
+}
 
+func CreateRedis() *redis.Client {
 	redisCfg := config.GetConfig().DataBases["redis"]
 	redisOpt := redis.Options{
 		Addr:           fmt.Sprintf("%v:%v", redisCfg["host"], redisCfg["port"]),
@@ -51,13 +57,71 @@ func main() {
 		MinIdleConns:   0,
 	}
 	redisClient := redis.NewClient(&redisOpt)
+	return redisClient
+}
 
-	baseDB := &storage.BaseDB{
-		DB: db,
-		RC: redisClient,
+func CreateObjectStorage() object.ObjectStorage {
+	var objectStorage object.ObjectStorage = object.NewQiNiuObjectStorage(
+		config.GetConfig().ObjectStorage.AccessKey,
+		config.GetConfig().ObjectStorage.SecretKey,
+		config.GetConfig().ObjectStorage.Domain,
+		config.GetConfig().ObjectStorage.Bucket,
+	)
+	return objectStorage
+}
+
+func CreateElasticSearchClient() *elasticsearch.Client {
+	elasticCfg := config.GetConfig().DataBases["elastic"]
+	addr := fmt.Sprintf("https://%v:%v", elasticCfg["host"], elasticCfg["port"])
+	username := elasticCfg["username"].(string)
+	password := elasticCfg["password"].(string)
+
+	crtFile, err := os.Open("http_ca.crt")
+	if err != nil {
+		panic(err)
+	}
+	defer crtFile.Close()
+	crt, err := io.ReadAll(crtFile)
+	if err != nil {
+		panic(err)
+	}
+	elasticClient, err := elasticsearch.NewClient(elasticsearch.Config{
+		Addresses: []string{addr},
+		Username:  username,
+		Password:  password,
+		CACert:    crt,
+	})
+	if err != nil {
+		panic(err)
+	}
+	_, err = elasticClient.Info()
+	if err != nil {
+		panic(err)
+	}
+	return elasticClient
+}
+
+func main() {
+	config.ConfigInit(CONFIG_PATH)
+
+	db := CreateDB()
+
+	redisClient := CreateRedis()
+
+	objectStorage := CreateObjectStorage()
+
+	elasticPool := &sync.Pool{
+		New: func() interface{} {
+			// 如果池中没有对象可用，这个函数会创建一个新的对象
+			return CreateElasticSearchClient()
+		},
 	}
 
 	ctx := context.Background()
+	ctx = context.WithValue(ctx, "db", db)
+	ctx = context.WithValue(ctx, "redis", redisClient)
+	ctx = context.WithValue(ctx, "object_storage", objectStorage)
+	ctx = context.WithValue(ctx, "elastic.pool", elasticPool)
 
 	// 日志
 	// logger, _ := zap.NewProduction()
@@ -66,22 +130,19 @@ func main() {
 	defer logger.Sync()
 	sugar := logger.Sugar()
 
-	var objectStorage object.ObjectStorage = object.NewQiNiuObjectStorage(
-		config.GetConfig().ObjectStorage.AccessKey,
-		config.GetConfig().ObjectStorage.SecretKey,
-		config.GetConfig().ObjectStorage.Domain,
-		config.GetConfig().ObjectStorage.Bucket,
-	)
+	accountDao := storage.NewAccountDao(storage.NewAccountDaoImpl())
+	videoDao := storage.NewVideoDao(storage.NewVideoDaoImpl())
 
-	videoDao := storage.NewVideoDao(storage.NewVideoDaoImpl(baseDB))
-	videoService := service.NewVideoServiceImpl(videoDao, objectStorage)
-	videoController := controller.NewVideoController(videoService, sugar)
-
-	accountDao := storage.NewAccountDao(storage.NewAccountDaoImpl(baseDB, ctx))
 	accountService := service.NewAccountServiceImpl(accountDao)
+	videoService := service.NewVideoServiceImpl(accountDao, videoDao, objectStorage)
+
+	videoController := controller.NewVideoController(videoService, sugar)
 	accountController := controller.NewAccountController(accountService, sugar)
 
 	r := gin.Default()
+	r.Use(SetCrossDomain, func(c *gin.Context) {
+		c.Set("ctx", ctx)
+	})
 
 	accountGroup := r.Group("/account")
 	accountGroup.POST("/register", accountController.Register)
@@ -89,9 +150,28 @@ func main() {
 
 	videoGroup := r.Group("/video")
 	videoGroup.Use(accountController.LoginAuthMiddleware())
-	videoGroup.GET("/next", videoController.FetchNextByVID)
-	videoGroup.GET("/uptoken", videoController.ApplyVideoUpToken)
+	videoGroup.GET("/url", videoController.GetVideoByID)
+	videoGroup.POST("/upload", videoController.UpLoadVideo)
+	videoGroup.POST("/upload_callback", videoController.UpLoadVideoCallBack)
+	videoGroup.POST("/search", videoController.SearchVideo)
+	videoGroup.POST("/like", videoController.LikeVideo)
+	videoGroup.POST("/cancel_like", videoController.CancelLikeVideo)
 
-	r.Static("/static/", "../static/")
+	r.Static("/static/", "static/")
 	r.Run(fmt.Sprintf(":%v", config.GetConfig().Server.Port))
+}
+
+func SetCrossDomain(c *gin.Context) {
+	c.Writer.Header().Set("Access-Control-Allow-Origin", "http://localhost:5173")
+	c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+	c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+	c.Writer.Header().Set("Access-Control-Max-Age", "86400")
+	c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+
+	if c.Request.Method == "OPTIONS" {
+		c.AbortWithStatus(http.StatusNoContent)
+		return
+	}
+
+	c.Next()
 }

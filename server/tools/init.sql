@@ -2,11 +2,14 @@ CREATE DATABASE video1024 CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 
 CREATE TABLE video1024.video_info (
 	vid BIGINT UNSIGNED auto_increment NOT NULL,
-	uploader BIGINT NOT NULL,
-	cdn TEXT NOT NULL,
+	uploader BIGINT UNSIGNED NOT NULL,
+	vkey TEXT NULL,
+	thumbnail TEXT NULL,
 	subtitled varchar(100) NULL,
 	likes BIGINT NOT NULL,
 	tags TEXT NULL,
+	upload_time BIGINT UNSIGNED NOT NULL,
+	upload_complete BOOLEAN NOT NULL,
 	CONSTRAINT video_info_PK PRIMARY KEY (vid)
 )
 ENGINE=InnoDB
@@ -19,7 +22,7 @@ CREATE TABLE video1024.account (
 	username varchar(20) NOT NULL,
 	nickname varchar(20) NOT NULL,
 	pwd TEXT NOT NULL,
-	register_time DATETIME DEFAULT NOW() NOT NULL,
+	register_time BIGINT UNSIGNED NOT NULL,
 	avatar TEXT NULL,
 	CONSTRAINT account_PK PRIMARY KEY (uid)
 )
