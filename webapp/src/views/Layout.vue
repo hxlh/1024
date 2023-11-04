@@ -3,9 +3,18 @@
     <div class="top-nav">
       <router-link to="/" class="nav-link front_page">首页</router-link>
       <router-link to="/videos" class="nav-link">推荐</router-link>
-      <input  class="search-input" placeholder="搜索..." />
+      <div class="search-area">
+        <input
+          class="search-input"
+          placeholder="搜索..."
+          v-model="searchKey"
+          @keyup.enter="search"
+        />
+        <button class="search-btn" @click="search">搜索</button>
+      </div>
       <router-link to="/upload">
         <img src="../assets/icons/加号.svg" alt="上传" class="upload-product" />
+
       </router-link>
       <div class="user" @click="handleUserClick">
         <img src="../assets/icons/用户.svg" alt="用户图像" class="user-avatar" />
@@ -13,31 +22,48 @@
       <LoginModule :showModal="showModal"  @close="closeModal" @loggedIn="updateLoginStatus" />
       </div>
     </div>
-    <router-view></router-view>
+    <router-view :videos="videoInfo"></router-view>
   </div>
 </template>
 
 <script  setup>
 import { ref } from "vue";
 import LoginModule from "@/common/user/LoginModule.vue";
-import RegisterModule from "@/common/user/RegisterModule.vue";
-import router from "@/router";
+import {searchVideo} from "@/api/search";
+import { useRouter } from 'vue-router'
 
+const router = useRouter()
 const showModal = ref(false); //展示登录框
 const username = localStorage.getItem("username")
 const isLogged= ref(false)
-function showLogin() {
-  console.log("showLogin")
-  showModal.value = true; //为true 确保显示登录模态框
+const searchKey = ref(""); //搜索关键字
+const offset = ref(0)
+const videoInfo = ref([]); // 添加一个用于存放视频数据的响应式引用
 
+// 搜索方法
+
+async function search() {
+  console.log('key:', searchKey.value);
+  try {
+    const response = await searchVideo({ key: searchKey.value,offset:offset.value }); // 假设 searchVideo 已正确接收对象参数
+    console.log("输出的值为:",response.data.data.info)
+    videoInfo.value = response.data.data.info;
+    await router.push({
+      name: 'search',
+      params: {videos: videoInfo.value}
+    });
+
+  } catch (error) {
+    console.error('Error fetching videos:', error);
+  }
 }
+
+
 
 function updateLoginStatus(status){
   isLogged.value = status;
 }
 function handleUserClick(){
-  console.log("handleUserClick")
-  console.log(isLogged.value)
   if(isLogged.value){
     router.push('/userinfo');
 
@@ -83,22 +109,47 @@ function closeModal() {
     .front_page{
       margin-left: 20%;
     }
+    .search-area {
+      display: flex; // 使用Flex布局来排列搜索框和按钮
+      align-items: center; // 垂直居中对齐搜索框和按钮
+      border: 1px solid white; // 给整个搜索区域加上边框
+      border-radius: 5px; // 边框圆角效果
+      overflow: hidden; // 防止子元素溢出边框
+      background-color: #181818; // 搜索区域背景色
+
+    }
 
     .search-input {
-      width: 20%;
+      width: 10%;
       padding: 8px;
-      margin-left: 10px;
-      border: 1px solid white;
-      background-color: #181818;
+      border: none;
       color: white;
       border-radius: 5px;
       outline: none;
       font-size: 16px;
+      flex-grow: 1; // 输入框会填充剩余空间
+      margin: 0; // 移除外边距
+      background-color: transparent; // 输入框背景透明
+
+
     }
-    .search-input:focus {
-      border-color: white !important; /* 设置激活时的边框颜色为白色 */
-      box-shadow: 0 0 5px rgba(255, 255, 255, 0.5) !important; /* 设置激活时的阴影效果 */
+
+    .search-btn {
+      border: none; // 去除按钮自身的边框
+      background-color: #3498db; // 按钮背景颜色
+      color: white; // 按钮文字颜色
+      padding: 8px 16px; // 按钮内边距
+      margin: 0; // 移除外边距
+      border-radius: 0; // 由于是在.search-area内，所以移除单独的圆角
+      cursor: pointer; // 鼠标悬停时显示指针
+      outline: none; // 去除聚焦时的边框
     }
+    .search-btn:hover {
+      background-color: #2980b9; // 按钮背景颜色变深
+    }
+
+    // 输入框聚焦时的样式
+
     .user {
       width: 120px;
       height: 50px;
@@ -140,14 +191,6 @@ function closeModal() {
       background-color: rgb(254, 44, 85);
       /* 添加阴影 */
       box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2); /* x偏移量, y偏移量, 模糊半径, 阴影颜色的透明度 */
-    }
-
-
-
-    /* 输入框激活时的样式 */
-    .search-input:focus {
-      border-color: #3498db;
-      box-shadow: 0 0 5px rgba(52, 152, 219, 0.5);
     }
   }
 }
