@@ -1,0 +1,15 @@
+version: '3'
+services:
+  redis:
+    image: redis:7.2.2-alpine
+    container_name: redis-test
+    command: redis-server --port 6380
+    ports:
+      - 6380:6380
+  mysql:
+    image: mysql:5.7.43
+    container_name: mysql-test
+    ports:
+      - 3306:3306
+    environment:
+      - MYSQL_ROOT_PASSWORD=123456

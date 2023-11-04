@@ -12,7 +12,7 @@
     </div>
 </template>
 
-<style>
+<style scoped>
 .video-container {
     width: 400px;
     height: 750px;
@@ -87,7 +87,7 @@
 
 <script setup>
 import {ref} from 'vue'
-const url = ref('./tmp/video.mp4')
+const url = ref('./tmp/video1.mp4')
 const record=[]
 function btnUpClicked() {
     url.value = "./tmp/video1.mp4"
