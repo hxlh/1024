@@ -2,10 +2,9 @@ import {createRouter, createWebHistory} from 'vue-router'
 import Upload from "../common/upload/Upload.vue";
 import Home from "../views/Home.vue";
 import Videos from "../common/videoList/Videos.vue";
-import VideoShow from "../common/videoList/VideoShow.vue";
 import AboutView from "@/views/AboutView.vue";
 import LoginModule from "@/common/user/LoginModule.vue";
-import VideoSearchResult from "@/common/videoList/VideoSearchResult.vue";
+import VideoSearchResult from "@/common/search/VideoSearchResult.vue";
 import UserInfo from "@/common/user/UserInfo.vue";
 
 const router = createRouter({
