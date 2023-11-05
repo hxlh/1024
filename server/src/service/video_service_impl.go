@@ -1,7 +1,7 @@
 /*
  * @Date: 2023-10-25 05:33:57
  * @LastEditors: hxlh
- * @LastEditTime: 2023-11-04 17:53:46
+ * @LastEditTime: 2023-11-05 17:33:32
  * @FilePath: /1024/server/src/service/video_service_impl.go
  */
 package service
@@ -288,6 +288,18 @@ func (t *VideoServiceImpl) RecommendedVideo(ctx context.Context, req entities.Re
 		info := resp.Info[i]
 		info.VideoUrl = t.objectStorage.Load(info.VideoUrl, time.Now().Add(VIDEO_CDN_DEAD_TIME).Unix())
 		info.ThumbnailUrl = t.objectStorage.Load(info.ThumbnailUrl, time.Now().Add(VIDEO_CDN_DEAD_TIME).Unix())
+	}
+
+	// 已登录则查询点赞状态
+	if req.Uid != 0 {
+		for i := 0; i < len(resp.Info); i++ {
+			info := resp.Info[i]
+			isLike, err := t.videoDao.CheckUserLikes(ctx, info.Vid, req.Uid)
+			if err != nil {
+				continue
+			}
+			info.IsLike = isLike
+		}
 	}
 
 	return resp, nil
@@ -792,6 +804,8 @@ func (t *VideoServiceImpl) SearchVideo(ctx context.Context, key string, offset i
 	if hitNum == 0 {
 		return res, nil
 	}
+
+	uids := make([]uint64, 0)
 	data := hits["hits"].([]interface{})
 	for i := 0; i < len(data); i++ {
 		info := &entities.SearchVideoRespInfo{}
@@ -803,7 +817,10 @@ func (t *VideoServiceImpl) SearchVideo(ctx context.Context, key string, offset i
 		}
 		// 解析数据
 		info.Vid = uint64(source["vid"].(float64))
+
 		uploaderID := uint64(source["uploader"].(float64))
+		uids = append(uids, uploaderID)
+
 		info.Subtitled = source["subtitled"].(string)
 		info.Tags = source["tags"].(string)
 		info.Likes = int64(source["likes"].(float64))
@@ -833,6 +850,15 @@ func (t *VideoServiceImpl) SearchVideo(ctx context.Context, key string, offset i
 		info.ThumbnailUrl = t.objectStorage.Load(imgKey, time.Now().Add(VIDEO_CDN_DEAD_TIME).Unix())
 
 		res.Info = append(res.Info, info)
+	}
+
+	for i := 0; i < len(res.Info); i++ {
+		info := res.Info[i]
+		isLike, err := t.videoDao.CheckUserLikes(ctx, info.Vid, uids[i])
+		if err != nil {
+			return res, err
+		}
+		info.IsLike = isLike
 	}
 
 	return res, nil

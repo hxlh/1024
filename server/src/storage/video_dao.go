@@ -1,7 +1,7 @@
 /*
  * @Date: 2023-10-24 16:29:27
  * @LastEditors: hxlh
- * @LastEditTime: 2023-11-04 16:06:42
+ * @LastEditTime: 2023-11-05 17:23:13
  * @FilePath: /1024/server/src/storage/video_dao.go
  */
 package storage
@@ -40,15 +40,23 @@ type VideoDao interface {
 	UserTagsIndexDel(ctx context.Context, uid uint64, tags []entities.TagLikes) error
 
 	SelectWhereIn(ctx context.Context, table string, keys []string, in string, values []any) (*sql.Rows, error)
+
+	// 检查vid这条视频uid是否点过赞
+	CheckUserLikes(ctx context.Context, vid, uid uint64) (bool, error)
 }
 
 type VideoDaoBase struct {
 	instance VideoDao
 }
 
+// CheckUserLikes implements VideoDao.
+func (t *VideoDaoBase) CheckUserLikes(ctx context.Context, vid uint64, uid uint64) (bool, error) {
+	return t.instance.CheckUserLikes(ctx, vid, uid)
+}
+
 // SelectWhereIn implements VideoDao.
-func (t*VideoDaoBase) SelectWhereIn(ctx context.Context, table string, keys []string, in string, values []any) (*sql.Rows, error) {
-	return t.instance.SelectWhereIn(ctx,table,keys,in,values)
+func (t *VideoDaoBase) SelectWhereIn(ctx context.Context, table string, keys []string, in string, values []any) (*sql.Rows, error) {
+	return t.instance.SelectWhereIn(ctx, table, keys, in, values)
 }
 
 // VideoIndexLikesInc implements VideoDao.

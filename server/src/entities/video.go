@@ -1,7 +1,7 @@
 /*
  * @Date: 2023-10-25 05:54:39
  * @LastEditors: hxlh
- * @LastEditTime: 2023-11-03 08:32:17
+ * @LastEditTime: 2023-11-05 17:24:13
  * @FilePath: /1024/server/src/entities/video.go
  */
 package entities
@@ -57,6 +57,7 @@ type SearchVideoRespInfo struct {
 	Subtitled          string `json:"subtitled"`           // 视频标题
 	HighLightSubtitled string `json:"highlight_subtitled"` // 设置了高亮的视频标题
 	Likes              int64  `json:"likes"`               // 该视频点赞数
+	IsLike             bool   `json:"is_like"`             // 该视频该用户是否点过赞
 	Tags               string `json:"tags"`                // 视频的tags
 	UpLoadTime         int64  `json:"upload_time"`         // 上传的时间，毫秒时间戳
 }
