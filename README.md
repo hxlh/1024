@@ -93,7 +93,7 @@ docker cp es-test:/usr/share/elasticsearch/config/certs/http_ca.crt .
 
 将控制台打印的秘钥复制到***server.yml*** 对应位置中即可
 
-#### 配置**[elasticsearch-analysis-ik](https://github.com/medcl/elasticsearch-analysis-ik/releases/download/v8.10.4/elasticsearch-analysis-ik-8.10.4.zip)**中文分词插件
+#### 配置 **[elasticsearch-analysis-ik](https://github.com/medcl/elasticsearch-analysis-ik/releases/download/v8.10.4/elasticsearch-analysis-ik-8.10.4.zip)** 中文分词插件
 
 ```Bash
 # 下载插件后，unzip解压文件
