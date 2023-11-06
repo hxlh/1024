@@ -54,21 +54,19 @@ func (t *VideoServiceImpl) CancelLikeVideo(ctx context.Context, req entities.Can
 	if err != nil {
 		return resp, err
 	}
-	if tags == "" {
-		return resp, nil
-	}
-	tagArr := strings.Split(tags, ",")
-	tagLikes := make([]entities.TagLikes, 0)
-	for i := 0; i < len(tagArr); i++ {
-		tagLikes = append(tagLikes, entities.TagLikes{
-			Tag:   tagArr[i],
-			Likes: -1,
-		})
-	}
-
-	err = t.videoDao.UserTagsIndexDel(ctx, req.Uid, tagLikes)
-	if err != nil {
-		return resp, err
+	if tags != "" {
+		tagArr := strings.Split(tags, ",")
+		tagLikes := make([]entities.TagLikes, 0)
+		for i := 0; i < len(tagArr); i++ {
+			tagLikes = append(tagLikes, entities.TagLikes{
+				Tag:   tagArr[i],
+				Likes: -1,
+			})
+		}
+		err = t.videoDao.UserTagsIndexDel(ctx, req.Uid, tagLikes)
+		if err != nil {
+			return resp, err
+		}
 	}
 	err = t.videoDao.UserLikesIndexDel(ctx, req.Vid, req.Uid)
 	if err != nil {
@@ -111,21 +109,21 @@ func (t *VideoServiceImpl) LikeVideo(ctx context.Context, req entities.LikeVideo
 	if err != nil {
 		return resp, err
 	}
-	if tags == "" {
-		return resp, nil
-	}
-	tagArr := strings.Split(tags, ",")
-	tagLikes := make([]entities.TagLikes, 0)
-	for i := 0; i < len(tagArr); i++ {
-		tagLikes = append(tagLikes, entities.TagLikes{
-			Tag:   tagArr[i],
-			Likes: 1,
-		})
-	}
 
-	err = t.videoDao.UserTagsIndexUpdate(ctx, req.Uid, tagLikes)
-	if err != nil {
-		return resp, err
+	if tags != "" {
+		tagArr := strings.Split(tags, ",")
+		tagLikes := make([]entities.TagLikes, 0)
+		for i := 0; i < len(tagArr); i++ {
+			tagLikes = append(tagLikes, entities.TagLikes{
+				Tag:   tagArr[i],
+				Likes: 1,
+			})
+		}
+
+		err = t.videoDao.UserTagsIndexUpdate(ctx, req.Uid, tagLikes)
+		if err != nil {
+			return resp, err
+		}
 	}
 
 	err = t.videoDao.UpdateBy(ctx, []string{"likes"}, []any{likes + 1}, "vid", req.Vid)

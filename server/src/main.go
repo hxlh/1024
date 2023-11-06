@@ -116,6 +116,9 @@ func main() {
 			return CreateElasticSearchClient()
 		},
 	}
+	// 测试是否连通Elasticsearch
+	e := elasticPool.Get()
+	elasticPool.Put(e)
 
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, "db", db)
@@ -156,8 +159,7 @@ func main() {
 	videoGroup.POST("/search", videoController.SearchVideo)
 	videoGroup.POST("/like", videoController.LikeVideo)
 	videoGroup.POST("/cancel_like", videoController.CancelLikeVideo)
-	
-	
+
 	r.Static("/static/", "static/")
 	r.Run(fmt.Sprintf(":%v", config.GetConfig().Server.Port))
 }
