@@ -1,7 +1,7 @@
 /*
  * @Date: 2023-10-25 05:59:02
  * @LastEditors: hxlh
- * @LastEditTime: 2023-11-04 16:06:19
+ * @LastEditTime: 2023-11-05 17:19:02
  * @FilePath: /1024/server/src/storage/video_dao_impl.go
  */
 package storage
@@ -25,6 +25,48 @@ import (
 
 type VideoDaoImpl struct {
 	objectStorage object.ObjectStorage
+}
+
+// CheckUserLikes implements VideoDao.
+func (t *VideoDaoImpl) CheckUserLikes(ctx context.Context, vid uint64, uid uint64) (bool, error) {
+	pool := ctx.Value("elastic.pool").(*sync.Pool)
+	client := pool.Get().(*elasticsearch.Client)
+	defer pool.Put(client)
+
+	query := fmt.Sprintf(`
+	{
+		"query":{
+			"bool":{
+				"must":[
+					{
+						"term":{
+							"vid":%v
+						}
+					},
+					{
+						"term":{
+							"uid":%v
+						}
+					}
+				]
+			}
+		},
+		"size":0
+	}
+	`, vid, uid)
+
+	resp, err := client.Search(client.Search.WithIndex("user_likes"), client.Search.WithBody(strings.NewReader(query)))
+	if err != nil {
+		return false, errors.WithStack(err)
+	}
+	defer resp.Body.Close()
+
+	data, err := io.ReadAll(resp.Body)
+	nums := gjson.GetBytes(data, "hits.total.value").Int()
+	if nums == 0 {
+		return false, nil
+	}
+	return true, nil
 }
 
 // SelectWhereIn implements VideoDao.
