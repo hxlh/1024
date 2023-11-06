@@ -89,11 +89,11 @@ function submitLogin() {
     .then(data => {
       console.log('登录成功', data);
       localStorage.setItem("username", loginState.username);
-      emit('loggedIn', true);
+      emit('loggedIn', loginState.username);
       closeModal();
       alert("登录成功！");
+      location.reload();
       // 处理登录成功逻辑
-
     })
     .catch(error => {
       console.error('登录失败', error);
