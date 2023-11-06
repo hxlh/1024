@@ -14,7 +14,6 @@
         <div class="meta-info">
           <h3>@{{ currentNickName }}</h3>
           <p>title:{{currentSubTitle}}</p>
-          <p>点赞数：{{ currentLikes }}❤️</p>
           <p>上传时间：{{ formatDate(currentUploadTime) }}</p>
         </div>
       </div>
@@ -319,15 +318,17 @@ export default {
 
 
 .video-info {
+  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center; /* 居中对齐子项 */
   margin-bottom: 20px; /* 和视频容器之间的距离 */
   position: absolute;
   bottom: 20px;
+  border-radius: 10%;
 }
 .meta-info {
-  background: rgba(0, 0, 0, 0.6); /* 透明黑背景 */
+  background: rgba(0, 0, 0, 0.3); /* 透明黑背景 */
   color: #fff;
   width: calc(100% - 20px); /* 减去边距的宽度 */
   padding: 10px;

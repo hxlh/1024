@@ -4,39 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="f6086458-f471-40b6-bd9c-0a9f7c2490e0" name="变更" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/jsLibraryMappings.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/me_cht_fork_1024.iml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/server/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/server/go.mod" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/server/go.sum" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/server/src/cdn/cdn.go" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/server/src/config/config.go" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/server/src/controller/video_controller.go" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/server/src/entities/video_info.go" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/server/src/main.go" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/server/src/service/video_service.go" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/server/src/service/video_service_impl.go" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/server/src/storage/database.go" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/server/src/storage/video_dao.go" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/server/src/storage/video_dao_impl.go" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/server/src/test/cdn_test.go" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/server/src/tools/init.sql" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/webapp/src/App copy.vue" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/webapp/src/assets/base.css" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/webapp/src/assets/main.css" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/webapp/src/common/recommend/Temp.vue" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/webapp/src/common/recommend/Temp02.vue" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/webapp/src/common/recommend/package.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/webapp/src/common/videoList/Menu.vue" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/webapp/src/main.js" beforeDir="false" afterPath="$PROJECT_DIR$/webapp/src/main.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/webapp/src/router/module/home.js" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/webapp/src/views/VideoView.vue" beforeDir="false" />
-    </list>
+    <list default="true" id="f6086458-f471-40b6-bd9c-0a9f7c2490e0" name="变更" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -120,7 +88,7 @@
       <workItem from="1699180080344" duration="5810000" />
       <workItem from="1699190737765" duration="37437000" />
       <workItem from="1699251380149" duration="23852000" />
-      <workItem from="1699281836880" duration="626000" />
+      <workItem from="1699281836880" duration="1377000" />
     </task>
     <servers />
   </component>
