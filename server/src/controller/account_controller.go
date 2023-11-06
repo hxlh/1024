@@ -132,7 +132,7 @@ func (t *AccountController) LoginAuthMiddleware() gin.HandlerFunc {
 			Data:   "Authentication failure",
 		}
 		token, ok := c.Request.Header["Authorization"]
-		if !ok{
+		if !ok {
 			c.JSON(code, &resp)
 			c.Abort()
 			return
