@@ -19,7 +19,7 @@
 
 ## 演示视频
 
-[演示视频](doc/demo.mp4)
+https://github.com/hxlh/1024/assets/49110117/cd8499c0-8ffa-4087-bb3d-d19db5ef330b
 
 ## 前端webapp文档
 
@@ -112,7 +112,7 @@ docker restart es-test
 
 #### 为数据库建立表
 
-[数据库需要提前准备的表](./数据库需要提前准备的表.md)
+[数据库需要提前准备的表](doc/数据库需要提前准备的表.md)
 
 #### 将http_cat.crt移到Build目录
 
