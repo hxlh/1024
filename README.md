@@ -17,6 +17,10 @@
 
 ![架构](doc/img/2.png)
 
+## 演示视频
+
+[演示视频](doc/demo.mp4)
+
 ## 前端webapp文档
 
 [从这里阅读](webapp/README.md)
@@ -64,7 +68,7 @@ mv dist/* ../build/static/
 
 #### 系统需要先设置好虚拟内存大小
 
-修改 **/etc/sysctl.conf**的vm.max_map_count
+修改**/etc/sysctl.conf**的vm.max_map_count
 
 ```Bash
 vm.max_map_count = 262144
@@ -93,7 +97,7 @@ docker cp es-test:/usr/share/elasticsearch/config/certs/http_ca.crt .
 
 将控制台打印的秘钥复制到***server.yml*** 对应位置中即可
 
-#### 配置 **[elasticsearch-analysis-ik](https://github.com/medcl/elasticsearch-analysis-ik/releases/download/v8.10.4/elasticsearch-analysis-ik-8.10.4.zip)** 中文分词插件
+#### 配置**[elasticsearch-analysis-ik](https://github.com/medcl/elasticsearch-analysis-ik/releases/download/v8.10.4/elasticsearch-analysis-ik-8.10.4.zip)**中文分词插件
 
 ```Bash
 # 下载插件后，unzip解压文件
@@ -108,7 +112,7 @@ docker restart es-test
 
 #### 为数据库建立表
 
-[数据库需要提前准备的表](doc/数据库需要提前准备的表.md)
+[数据库需要提前准备的表](./数据库需要提前准备的表.md)
 
 #### 将http_cat.crt移到Build目录
 
