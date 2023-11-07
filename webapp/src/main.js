@@ -6,6 +6,6 @@ import ElementUI from 'element-plus'
 const app = createApp(App)
 
 app.use(router)
-  .use(store)
+  // .use(store)
   .use(ElementUI)
   .mount('#app')
